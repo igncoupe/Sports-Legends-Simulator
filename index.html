@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Brainrot Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800&display=swap">
+<style>
+/* Layout: full-bleed 3D world, chunky outlined HUD pinned to the edges, one modal panel centered over the play field. */
+:root {
+  --ink: #1d1433;
+  --paper: #ffffff;
+  --panel: #2b2048;
+  --panel-row: #3b2d63;
+  --aura: #b77bff;
+  --brain: #ff6fb0;
+  --go: #36d27a;
+  --danger: #ff5577;
+  --muted: #6f6790;
+  --warn: #ffd23f;
+  --sky: #8fd6ff;
+  --egg: #f3e9ff;
+  --scrim: rgb(29 20 51 / 0.55);
+  --common: #d9d3ea;
+  --rare: #5ab8ff;
+  --epic: #d07bff;
+  --legendary: #ffc23d;
+  --mythic: #ff5577;
+  --display: "Lilita One", "Arial Black", system-ui, sans-serif;
+  --body: "Nunito", system-ui, sans-serif;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--sky);
+  color: var(--paper);
+  font-family: var(--body);
+  font-weight: 700;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+
+/* Every big game word: display face, white fill, thick ink outline drawn behind the fill. */
+.big, .btn, .name, .tag, .pop, #toast, #full, #help, #bag-text, h2, h3, .rarity, .pet-name {
+  font-family: var(--display);
+  font-weight: 400;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 4px var(--ink);
+}
+
+#stats { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 16px; display: grid; gap: 8px; pointer-events: none; }
+.stat { display: flex; align-items: center; gap: 10px; }
+.big { font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; -webkit-text-stroke: 7px var(--ink); }
+.coin {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 4px solid var(--ink);
+  background: radial-gradient(circle at 35% 35%, var(--paper) 0 14%, var(--aura) 15%);
+}
+#bag { position: relative; width: 250px; max-width: calc(100vw - 32px); height: 28px; border: 4px solid var(--ink); border-radius: 16px; background: var(--panel); overflow: hidden; }
+#bag-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--brain); transition: width 0.15s; }
+#bag-text { position: relative; font-size: 17px; line-height: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+
+#help {
+  position: fixed; left: 16px; right: 16px; bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  margin: 0; text-align: center; font-size: 15px; letter-spacing: 0.02em;
+  -webkit-text-stroke: 4px var(--ink); pointer-events: none;
+}
+#bar {
+  position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; pointer-events: none;
+}
+#bar .btn { pointer-events: auto; }
+
+.btn {
+  font-size: 20px; letter-spacing: 0.02em; color: var(--paper);
+  background: var(--go);
+  border: 4px solid var(--ink); border-bottom-width: 7px; border-radius: 14px;
+  padding: 6px 18px; cursor: pointer;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:active:not(:disabled) { transform: translateY(3px); border-bottom-width: 4px; }
+.btn:disabled { background: var(--muted); cursor: not-allowed; }
+.btn:focus-visible { outline: 3px solid var(--warn); outline-offset: 3px; }
+.btn.purple { background: var(--aura); }
+.btn.off { background: var(--muted); }
+.btn.wide { width: 100%; font-size: 24px; }
+.btn.close { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; padding: 0; background: var(--danger); font-size: 22px; }
+
+#toast {
+  position: fixed; top: 16%; left: 16px; right: 16px; text-align: center;
+  font-size: clamp(36px, 7vw, 72px); -webkit-text-stroke: 10px var(--ink);
+  opacity: 0; transform: scale(0.9); transition: opacity 0.35s, transform 0.35s; pointer-events: none;
+}
+#toast.show { opacity: 1; transform: scale(1); }
+#full {
+  position: fixed; top: 30%; left: 16px; right: 16px; text-align: center;
+  font-size: clamp(22px, 4vw, 32px); color: var(--warn); -webkit-text-stroke: 7px var(--ink);
+  pointer-events: none; animation: pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes pulse { to { transform: scale(1.06); } }
+
+#panel {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  box-sizing: border-box; width: min(500px, calc(100% - 32px)); max-height: calc(100% - 190px);
+  overflow-y: auto; padding: 18px; display: grid; gap: 10px;
+  background: var(--panel); border: 4px solid var(--ink); border-radius: 22px; box-shadow: 0 8px 0 var(--ink);
+}
+#panel h2 { margin: 0 52px 0 0; font-size: 32px; line-height: 1.1; -webkit-text-stroke: 7px var(--ink); }
+#panel h3 { margin: 6px 0 0; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warn); }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 10px 12px; background: var(--panel-row); border-radius: 14px;
+}
+.name { font-size: 21px; line-height: 1.15; }
+.sub { font-size: 14px; color: var(--common); }
+.tag { font-size: 18px; color: var(--warn); font-variant-numeric: tabular-nums; }
+.tag.dim { color: var(--common); }
+.row .btn { font-size: 17px; padding: 4px 12px; }
+.note { margin: 0; font-size: 15px; line-height: 1.4; color: var(--common); }
+.note b { color: var(--warn); }
+.r-common { color: var(--common); }
+.r-rare { color: var(--rare); }
+.r-epic { color: var(--epic); }
+.r-legendary { color: var(--legendary); }
+.r-mythic { color: var(--mythic); }
+
+#pops { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.pop { position: absolute; font-size: 26px; -webkit-text-stroke: 6px var(--ink); white-space: nowrap; animation: rise 0.9s ease-out forwards; }
+.pop.brain { color: var(--brain); }
+.pop.aura { color: var(--aura); font-size: 36px; }
+@keyframes rise {
+  from { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
+  to { transform: translate(-50%, calc(-50% - 60px)) scale(1); opacity: 0; }
+}
+
+#hatch { position: fixed; inset: 0; display: grid; place-items: center; background: var(--scrim); cursor: pointer; }
+.egg {
+  width: 150px; height: 190px; box-sizing: border-box;
+  border: 6px solid var(--ink); border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%;
+  background:
+    radial-gradient(circle at 30% 28%, var(--paper) 0 9%, transparent 10%),
+    radial-gradient(circle at 66% 58%, var(--aura) 0 12%, transparent 13%),
+    radial-gradient(circle at 34% 76%, var(--brain) 0 9%, transparent 10%),
+    var(--egg);
+  animation: shake 0.12s ease-in-out infinite alternate;
+}
+@keyframes shake { from { transform: rotate(-9deg); } to { transform: rotate(9deg); } }
+.reveal { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 16px; animation: pop-in 0.35s ease-out; }
+.rarity { font-size: 28px; letter-spacing: 0.1em; text-transform: uppercase; -webkit-text-stroke: 7px var(--ink); }
+.pet-name { font-size: clamp(34px, 8vw, 60px); line-height: 1; text-wrap: balance; -webkit-text-stroke: 10px var(--ink); }
+@keyframes pop-in { from { transform: scale(0.4); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .egg, #full, .reveal { animation: none; }
+  #toast { transition: none; }
+  .pop { animation-name: fade; }
+  @keyframes fade { from { transform: translate(-50%, -50%); opacity: 1; } to { transform: translate(-50%, -50%); opacity: 0; } }
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="stats">
+  <div class="stat"><span class="coin"></span><span id="aura" class="big">0</span></div>
+  <div id="bag"><div id="bag-fill"></div><div id="bag-text">0 / 25 Brainrot</div></div>
+</div>
+
+<p id="help">WASD to move · Space to jump · Click to swing · Drag to look around · Scroll to zoom</p>
+<div id="bar">
+  <button id="auto" class="btn off" type="button">Auto Swing: Off</button>
+  <button id="pets" class="btn purple" type="button">Pets x1.0</button>
+</div>
+
+<div id="toast"></div>
+<div id="full" hidden>Backpack full! Sell it on a green SELL pad.</div>
+<div id="panel" hidden></div>
+<div id="hatch" hidden></div>
+<div id="pops"></div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+// ---------- Game data ----------
+
+const TOOLS = [
+  { name: "Stick",           power: 1,   cost: 0,      color: 0x8a5a2b },
+  { name: "Rizz Bat",        power: 3,   cost: 75,     color: 0xff6fb0 },
+  { name: "Sigma Sword",     power: 10,  cost: 600,    color: 0x5ad1ff },
+  { name: "Ohio Hammer",     power: 35,  cost: 4000,   color: 0x9d5cff },
+  { name: "Skibidi Scepter", power: 120, cost: 30000,  color: 0xffd23f },
+  { name: "Aura Blade",      power: 500, cost: 250000, color: 0xffffff },
+];
+
+const BAGS = [
+  { name: "Pocket",     capacity: 25,     cost: 0 },
+  { name: "Lunchbox",   capacity: 100,    cost: 50 },
+  { name: "Backpack",   capacity: 400,    cost: 400 },
+  { name: "Duffel Bag", capacity: 2000,   cost: 3000 },
+  { name: "Fanum Sack", capacity: 10000,  cost: 25000 },
+  { name: "Black Hole", capacity: 100000, cost: 200000 },
+];
+
+// Chances add up to 100.
+const PETS = [
+  { id: "patapim",     name: "Brr Brr Patapim",      rarity: "Common",    bonus: 0.2, chance: 45,  color: 0x6b8e23 },
+  { id: "chimpanzini", name: "Chimpanzini Bananini", rarity: "Common",    bonus: 0.3, chance: 30,  color: 0xffe14d },
+  { id: "lirili",      name: "Lirili Larila",        rarity: "Rare",      bonus: 0.6, chance: 15,  color: 0x9aa7b0 },
+  { id: "ballerina",   name: "Ballerina Cappuccina", rarity: "Epic",      bonus: 1.2, chance: 7,   color: 0xff9ad5 },
+  { id: "tralalero",   name: "Tralalero Tralala",    rarity: "Legendary", bonus: 2.5, chance: 2.5, color: 0x3f8cff },
+  { id: "bombardiro",  name: "Bombardiro Crocodilo", rarity: "Mythic",    bonus: 6,   chance: 0.5, color: 0x2e7d32 },
+];
+const PET_BY_ID = Object.fromEntries(PETS.map(p => [p.id, p]));
+const EGG_COST = 250;
+const PETS_EQUIPPED = 3;
+
+const NODE_TYPES = {
+  rock:    { name: "Rizz Rock",     value: 1,  hits: 4, radius: 1.3 },
+  crystal: { name: "Sigma Crystal", value: 8,  hits: 6, radius: 1.1 },
+  toilet:  { name: "Golden Toilet", value: 60, hits: 8, radius: 1.2 },
+};
+
+// Zones run from spawn (z = 30) toward -z. Each zone after the first sits behind a gate.
+const ZONES = [
+  { name: "Skibidi Fields", zStart: 30,  zEnd: -20,  cost: 0,     node: "rock",    ground: 0x63c24c, wall: 0x3f8f34, leaves: 0x2f8f3a },
+  { name: "Ohio",           zStart: -20, zEnd: -60,  cost: 500,   node: "crystal", ground: 0x5a4384, wall: 0x3a2a5c, leaves: 0x7a3fb0 },
+  { name: "Toilet Kingdom", zStart: -60, zEnd: -100, cost: 15000, node: "toilet",  ground: null,     wall: 0x8fb3cc, leaves: 0x2f8f3a },
+];
+
+const PADS = [
+  { kind: "sell", x: -14, z: 18 },
+  { kind: "shop", x: 14,  z: 22 },
+  { kind: "egg",  x: 14,  z: 11 },
+  { kind: "sell", x: -22, z: -26 },
+  { kind: "sell", x: -22, z: -66 },
+];
+const PAD_STYLE = {
+  sell: { color: 0x36d27a, text: "SELL" },
+  shop: { color: 0x3f8cff, text: "SHOP" },
+  egg:  { color: 0xb77bff, text: "EGGS" },
+};
+
+const HALF_WIDTH = 30;
+const NODES_PER_ZONE = 12;
+const SPEED = 12;
+const JUMP = 11;
+const GRAVITY = 32;
+const REACH = 2.6;
+const SWING_TIME = 0.3;
+const RESPAWN_TIME = 6;
+const PAD_RADIUS = 3;
+const SAVE_KEY = "brainrot-simulator-save";
+const INK = 0x1d1433;
+
+// ---------- Save data ----------
+
+function defaultState() {
+  return { aura: 0, brainrot: 0, tool: 0, bag: 0, zones: 1, pets: {}, auto: false };
+}
+function loadState() {
+  let raw = null;
+  try { raw = localStorage.getItem(SAVE_KEY); } catch { /* storage blocked: start fresh */ }
+  return raw ? { ...defaultState(), ...JSON.parse(raw) } : defaultState();
+}
+function saveState() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch { /* storage blocked: progress lasts this visit only */ }
+}
+
+const state = loadState();
+let dirty = false;
+
+const capacity = () => BAGS[state.bag].capacity;
+function equippedPets() {
+  return Object.entries(state.pets)
+    .flatMap(([id, count]) => Array(count).fill(PET_BY_ID[id]))
+    .sort((a, b) => b.bonus - a.bonus)
+    .slice(0, PETS_EQUIPPED);
+}
+const multiplier = () => 1 + equippedPets().reduce((sum, pet) => sum + pet.bonus, 0);
+
+function fmt(n) {
+  const units = ["", "K", "M", "B", "T"];
+  let i = 0;
+  while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+  return (i === 0 ? Math.floor(n) : parseFloat(n.toFixed(n < 10 ? 2 : 1))) + units[i];
+}
+const pct = bonus => `+${Math.round(bonus * 100)}%`;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// Seeded so the world layout is the same every visit.
+function mulberry32(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(1337);
+
+// ---------- Scene ----------
+
+const canvas = document.getElementById("game");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+
+const SKY = 0x8fd6ff;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(SKY);
+scene.fog = new THREE.Fog(SKY, 70, 170);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x6b8f4e, 2.2));
+const sun = new THREE.DirectionalLight(0xfff4dd, 2.2);
+sun.position.set(40, 80, 30);
+scene.add(sun);
+
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 400);
+function resize() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+
+const materials = new Map();
+function mat(color) {
+  if (!materials.has(color)) materials.set(color, new THREE.MeshLambertMaterial({ color }));
+  return materials.get(color);
+}
+function box(w, h, d, color) {
+  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+}
+function glowMat(color, strength) {
+  return new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: strength });
+}
+
+// Floating sign text, drawn once into a canvas texture.
+function label(text, fill, width) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 128;
+  const g = c.getContext("2d");
+  let size = 76;
+  do { size -= 4; g.font = `${size}px "Lilita One", "Arial Black", sans-serif`; } while (g.measureText(text).width > 460);
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.lineJoin = "round";
+  g.lineWidth = 16;
+  g.strokeStyle = "#1d1433";
+  g.strokeText(text, 256, 68);
+  g.fillStyle = fill;
+  g.fillText(text, 256, 68);
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthWrite: false }));
+  sprite.scale.set(width, width / 4, 1);
+  return sprite;
+}
+
+function tileMaterial(length) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  g.fillStyle = "#f4f8fb";
+  g.fillRect(0, 0, 64, 64);
+  g.fillStyle = "#9fd3f0";
+  g.fillRect(0, 0, 32, 32);
+  g.fillRect(32, 32, 32, 32);
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.magFilter = THREE.NearestFilter;
+  map.repeat.set(HALF_WIDTH / 2, length / 4);
+  return new THREE.MeshLambertMaterial({ map });
+}
+
+const zoneAt = z => ZONES.findIndex(zone => z <= zone.zStart && z > zone.zEnd);
+
+// ---------- World ----------
+
+const gates = [];
+let eggMesh;
+
+function buildWorld() {
+  const outside = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), mat(0x4f9e3c));
+  outside.rotation.x = -Math.PI / 2;
+  outside.position.y = -0.05;
+  scene.add(outside);
+
+  ZONES.forEach((zone, i) => {
+    const length = zone.zStart - zone.zEnd;
+    const midZ = (zone.zStart + zone.zEnd) / 2;
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(HALF_WIDTH * 2, length),
+      zone.ground === null ? tileMaterial(length) : mat(zone.ground),
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.z = midZ;
+    scene.add(ground);
+    for (const side of [-1, 1]) {
+      const wall = box(1, 2, length, zone.wall);
+      wall.position.set(side * (HALF_WIDTH + 0.5), 1, midZ);
+      scene.add(wall);
+    }
+    if (i >= state.zones) gates[i] = buildGate(zone);
+  });
+  for (const z of [ZONES[0].zStart + 0.5, ZONES.at(-1).zEnd - 0.5]) {
+    const wall = box(HALF_WIDTH * 2 + 2, 2, 1, ZONES[0].wall);
+    wall.position.set(0, 1, z);
+    scene.add(wall);
+  }
+
+  const trunkGeo = new THREE.CylinderGeometry(0.4, 0.5, 2, 8);
+  const leafGeo = new THREE.ConeGeometry(2.2, 5, 8);
+  for (let z = 28; z > -100; z -= 7) {
+    for (const side of [-1, 1]) {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(trunkGeo, mat(0x7a4a24));
+      trunk.position.y = 1;
+      const leaves = new THREE.Mesh(leafGeo, mat(ZONES[zoneAt(z)].leaves));
+      leaves.position.y = 4.4;
+      tree.add(trunk, leaves);
+      tree.position.set(side * (HALF_WIDTH + 4 + rand() * 8), 0, z + rand() * 4);
+      tree.scale.setScalar(0.8 + rand() * 0.6);
+      scene.add(tree);
+    }
+  }
+
+  for (const pad of PADS) {
+    const style = PAD_STYLE[pad.kind];
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(PAD_RADIUS, PAD_RADIUS, 0.25, 40), glowMat(style.color, 0.35));
+    disc.position.set(pad.x, 0.12, pad.z);
+    scene.add(disc);
+    const sign = label(style.text, "#ffffff", 7);
+    sign.position.set(pad.x, pad.kind === "egg" ? 7.4 : 4.2, pad.z);
+    scene.add(sign);
+    if (pad.kind === "egg") {
+      eggMesh = new THREE.Mesh(new THREE.SphereGeometry(1.3, 24, 16), glowMat(0xf3e9ff, 0.2));
+      eggMesh.scale.y = 1.3;
+      eggMesh.position.set(pad.x, 4.4, pad.z);
+      scene.add(eggMesh);
+    }
+  }
+}
+
+function buildGate(zone) {
+  const gate = new THREE.Group();
+  const wall = new THREE.Mesh(
+    new THREE.BoxGeometry(HALF_WIDTH * 2, 7, 0.6),
+    new THREE.MeshLambertMaterial({ color: 0xff5577, transparent: true, opacity: 0.55 }),
+  );
+  wall.position.y = 3.5;
+  const name = label(zone.name, "#ffffff", 13);
+  name.position.y = 10.4;
+  const price = label(`${fmt(zone.cost)} Aura`, "#ffd23f", 9);
+  price.position.y = 7.8;
+  gate.add(wall, name, price);
+  gate.position.z = zone.zStart;
+  gate.visible = ZONES.indexOf(zone) === state.zones;
+  scene.add(gate);
+  return gate;
+}
+
+// ---------- Brainrot nodes ----------
+
+const nodes = [];
+const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+const gemGeo = new THREE.OctahedronGeometry(0.6, 0);
+const bowlGeo = new THREE.CylinderGeometry(0.9, 0.6, 1, 16);
+const rimGeo = new THREE.TorusGeometry(0.82, 0.16, 8, 20);
+const waterGeo = new THREE.CircleGeometry(0.7, 20);
+const crystalMat = glowMat(0x5ad1ff, 0.45);
+
+function nodeModel(type) {
+  const g = new THREE.Group();
+  if (type === "rock") {
+    const rock = new THREE.Mesh(rockGeo, mat(0xc7b3d6));
+    rock.scale.set(1.3, 1, 1.15);
+    rock.position.y = 0.8;
+    const gem = new THREE.Mesh(gemGeo, glowMat(0xff6fb0, 0.4));
+    gem.scale.setScalar(0.6);
+    gem.position.set(0.3, 1.75, 0.2);
+    g.add(rock, gem);
+  }
+  if (type === "crystal") {
+    for (const [x, z, h, tilt] of [[0, 0, 2.6, 0], [0.6, 0.3, 1.7, 0.35], [-0.55, 0.2, 1.9, -0.3], [0.1, -0.55, 1.5, 0.2]]) {
+      const shard = new THREE.Mesh(gemGeo, crystalMat);
+      shard.scale.set(0.9, h, 0.9);
+      shard.position.set(x, h * 0.55, z);
+      shard.rotation.z = tilt;
+      g.add(shard);
+    }
+  }
+  if (type === "toilet") {
+    const gold = mat(0xffc93c);
+    const bowl = new THREE.Mesh(bowlGeo, gold);
+    bowl.position.y = 0.5;
+    const rim = new THREE.Mesh(rimGeo, gold);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 1.02;
+    const water = new THREE.Mesh(waterGeo, mat(0x6fd3ff));
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = 0.95;
+    const tank = box(1.5, 1.4, 0.55, 0xffc93c);
+    tank.position.set(0, 1.3, -0.85);
+    g.add(bowl, rim, water, tank);
+  }
+  return g;
+}
+
+function placeNodes() {
+  ZONES.forEach((zone, zoneIndex) => {
+    const type = NODE_TYPES[zone.node];
+    const zTop = zoneIndex === 0 ? 4 : zone.zStart - 4;
+    const zBottom = zone.zEnd + 3;
+    let placed = 0;
+    for (let tries = 0; placed < NODES_PER_ZONE; tries++) {
+      if (tries > 2000) throw new Error(`Could not fit ${NODES_PER_ZONE} nodes in ${zone.name}`);
+      const x = (rand() * 2 - 1) * (HALF_WIDTH - 4);
+      const z = zBottom + rand() * (zTop - zBottom);
+      if (nodes.some(n => Math.hypot(n.x - x, n.z - z) < 5.5)) continue;
+      if (PADS.some(p => Math.hypot(p.x - x, p.z - z) < 7)) continue;
+      const group = nodeModel(zone.node);
+      group.position.set(x, 0, z);
+      group.rotation.y = rand() * Math.PI * 2;
+      scene.add(group);
+      nodes.push({ zone: zoneIndex, type: zone.node, x, z, radius: type.radius, hitsLeft: type.hits, respawn: 0, punch: 0, grow: 1, group });
+      placed++;
+    }
+  });
+}
+
+function nearestNode() {
+  const p = player.root.position;
+  let best = null;
+  let bestGap = REACH;
+  for (const n of nodes) {
+    if (n.respawn > 0 || n.zone >= state.zones) continue;
+    const gap = Math.hypot(n.x - p.x, n.z - p.z) - n.radius;
+    if (gap < bestGap) { best = n; bestGap = gap; }
+  }
+  return best;
+}
+
+function updateNodes(dt) {
+  for (const n of nodes) {
+    if (n.respawn > 0) {
+      n.respawn -= dt;
+      if (n.respawn <= 0) {
+        n.hitsLeft = NODE_TYPES[n.type].hits;
+        n.grow = 0;
+        n.group.visible = true;
+      }
+      continue;
+    }
+    n.punch = Math.max(0, n.punch - dt * 5);
+    n.grow = Math.min(1, n.grow + dt * 3);
+    n.group.scale.setScalar(n.grow * (1 - 0.15 * n.punch));
+  }
+}
+
+// ---------- Player ----------
+
+let player;
+
+function makePlayer() {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  function limb(w, h, color, x, y) {
+    const pivot = new THREE.Group();
+    pivot.position.set(x, y, 0);
+    const mesh = box(w, h, w, color);
+    mesh.position.y = -h / 2;
+    pivot.add(mesh);
+    body.add(pivot);
+    return pivot;
+  }
+  const legL = limb(0.55, 1.3, 0x4caa3c, -0.3, 1.3);
+  const legR = limb(0.55, 1.3, 0x4caa3c, 0.3, 1.3);
+  const armL = limb(0.48, 1.25, 0xf5cd30, -0.86, 2.55);
+  const armR = limb(0.48, 1.25, 0xf5cd30, 0.86, 2.55);
+  const torso = box(1.2, 1.3, 0.6, 0x1f6fd1);
+  torso.position.y = 1.95;
+  const head = box(0.85, 0.85, 0.85, 0xf5cd30);
+  head.position.y = 3.05;
+  const eyeL = box(0.12, 0.2, 0.04, INK);
+  eyeL.position.set(-0.18, 3.12, 0.43);
+  const eyeR = box(0.12, 0.2, 0.04, INK);
+  eyeR.position.set(0.18, 3.12, 0.43);
+  const mouth = box(0.34, 0.06, 0.04, INK);
+  mouth.position.set(0, 2.88, 0.43);
+  body.add(torso, head, eyeL, eyeR, mouth);
+
+  const tool = new THREE.Group();
+  tool.position.y = -1.15;
+  armR.add(tool);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.9, 24),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.28;
+
+  root.position.set(0, 0, 26);
+  body.rotation.y = Math.PI;
+  scene.add(root, shadow);
+  return { root, body, legL, legR, armL, armR, tool, shadow, vy: 0, facing: Math.PI, swingT: 1, walkT: 0 };
+}
+
+function buildTool() {
+  player.tool.clear();
+  const size = 0.28 + state.tool * 0.08;
+  const handle = box(0.16, 0.16, 1.3, 0x7a4a24);
+  handle.position.z = 0.55;
+  const head = box(size, size, size * 1.6, TOOLS[state.tool].color);
+  head.position.z = 1.2 + size * 0.5;
+  player.tool.add(handle, head);
+}
+
+// Arm angle over one swing: wind up over the head, then strike down in front.
+function swingAngle(t) {
+  return t < 0.35 ? -0.4 - 2.4 * (t / 0.35) : -2.8 + 2.6 * ((t - 0.35) / 0.65);
+}
+
+const keys = new Set();
+const GAME_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
+addEventListener("keydown", e => {
+  if (!GAME_KEYS.has(e.code)) return;
+  e.preventDefault();
+  keys.add(e.code);
+});
+addEventListener("keyup", e => keys.delete(e.code));
+addEventListener("blur", () => keys.clear());
+const held = (...codes) => codes.some(code => keys.has(code));
+
+const minZ = () => ZONES[state.zones - 1].zEnd + 0.9;
+
+function updatePlayer(dt) {
+  const p = player.root.position;
+  const forward = held("KeyW", "ArrowUp") - held("KeyS", "ArrowDown");
+  const strafe = held("KeyD", "ArrowRight") - held("KeyA", "ArrowLeft");
+  const fx = -Math.sin(cam.yaw);
+  const fz = -Math.cos(cam.yaw);
+  let mx = fx * forward - fz * strafe;
+  let mz = fz * forward + fx * strafe;
+  const len = Math.hypot(mx, mz);
+  const moving = len > 0;
+  if (moving) {
+    mx /= len;
+    mz /= len;
+    p.x += mx * SPEED * dt;
+    p.z += mz * SPEED * dt;
+    if (player.swingT >= 1) player.facing = Math.atan2(mx, mz);
+  }
+
+  if (held("Space") && p.y === 0) player.vy = JUMP;
+  player.vy -= GRAVITY * dt;
+  p.y = Math.max(0, p.y + player.vy * dt);
+  if (p.y === 0) player.vy = 0;
+
+  for (const n of nodes) {
+    if (n.respawn > 0) continue;
+    const dx = p.x - n.x;
+    const dz = p.z - n.z;
+    const d = Math.hypot(dx, dz);
+    const min = n.radius + 0.6;
+    if (d < min && d > 0) {
+      p.x = n.x + (dx / d) * min;
+      p.z = n.z + (dz / d) * min;
+    }
+  }
+  p.x = clamp(p.x, -HALF_WIDTH + 0.9, HALF_WIDTH - 0.9);
+  p.z = clamp(p.z, minZ(), ZONES[0].zStart - 0.9);
+
+  const turn = Math.atan2(Math.sin(player.facing - player.body.rotation.y), Math.cos(player.facing - player.body.rotation.y));
+  player.body.rotation.y += turn * (1 - Math.exp(-dt * 14));
+
+  player.walkT = moving && p.y === 0 ? player.walkT + dt * 10 : 0;
+  const stride = Math.sin(player.walkT) * 0.7;
+  player.legL.rotation.x = stride;
+  player.legR.rotation.x = -stride;
+  player.armL.rotation.x = -stride;
+  player.swingT = Math.min(1, player.swingT + dt / SWING_TIME);
+  player.armR.rotation.x = player.swingT < 1 ? swingAngle(player.swingT) : -0.4 + stride * 0.4;
+
+  player.shadow.position.x = p.x;
+  player.shadow.position.z = p.z;
+  player.shadow.scale.setScalar(1 - Math.min(p.y / 8, 0.5));
+}
+
+function swing() {
+  if (player.swingT < 1) return;
+  player.swingT = 0;
+  const node = nearestNode();
+  if (!node || state.brainrot >= capacity()) return;
+  const p = player.root.position;
+  player.facing = Math.atan2(node.x - p.x, node.z - p.z);
+  const gain = Math.min(
+    Math.round(TOOLS[state.tool].power * NODE_TYPES[node.type].value * multiplier()),
+    capacity() - state.brainrot,
+  );
+  state.brainrot += gain;
+  node.punch = 1;
+  popup(`+${fmt(gain)}`, node.x, 3, node.z, "brain");
+  node.hitsLeft--;
+  if (node.hitsLeft === 0) {
+    node.respawn = RESPAWN_TIME;
+    node.group.visible = false;
+  }
+  refreshHud();
+}
+
+function sell() {
+  const p = player.root.position;
+  popup(`+${fmt(state.brainrot)} Aura`, p.x, p.y + 4.5, p.z, "aura");
+  state.aura += state.brainrot;
+  state.brainrot = 0;
+  refreshHud();
+}
+
+// ---------- Pets ----------
+
+let petMeshes = [];
+
+function buildPets() {
+  for (const group of petMeshes) scene.remove(group);
+  const p = player.root.position;
+  petMeshes = equippedPets().map(pet => {
+    const group = new THREE.Group();
+    const body = box(0.9, 0.8, 0.9, pet.color);
+    const eyeL = box(0.14, 0.2, 0.04, INK);
+    eyeL.position.set(-0.2, 0.1, 0.46);
+    const eyeR = box(0.14, 0.2, 0.04, INK);
+    eyeR.position.set(0.2, 0.1, 0.46);
+    group.add(body, eyeL, eyeR);
+    if (pet.rarity === "Legendary" || pet.rarity === "Mythic") {
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.06, 8, 20), glowMat(0xffd23f, 0.8));
+      halo.rotation.x = Math.PI / 2;
+      halo.position.y = 0.7;
+      group.add(halo);
+    }
+    group.position.set(p.x, 1, p.z);
+    scene.add(group);
+    return group;
+  });
+}
+
+function updatePets(dt, time) {
+  const p = player.root.position;
+  const follow = 1 - Math.exp(-dt * 6);
+  petMeshes.forEach((group, i) => {
+    const angle = player.facing + Math.PI + (i - (petMeshes.length - 1) / 2) * 0.7;
+    group.position.x += (p.x + Math.sin(angle) * 2.8 - group.position.x) * follow;
+    group.position.z += (p.z + Math.cos(angle) * 2.8 - group.position.z) * follow;
+    group.position.y = p.y + 1.1 + Math.sin(time * 4 + i) * 0.2;
+    group.rotation.y = player.facing;
+  });
+}
+
+function rollPet() {
+  let roll = Math.random() * 100;
+  for (const pet of PETS) {
+    roll -= pet.chance;
+    if (roll < 0) return pet;
+  }
+  throw new Error("Pet chances must add up to 100");
+}
+
+// ---------- Camera ----------
+
+const cam = { yaw: 0, pitch: 0.42, dist: 15 };
+const camTarget = new THREE.Vector3();
+let drag = null;
+
+canvas.addEventListener("pointerdown", e => {
+  drag = { x: e.clientX, y: e.clientY, moved: false };
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x;
+  const dy = e.clientY - drag.y;
+  if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+  drag.moved = true;
+  drag.x = e.clientX;
+  drag.y = e.clientY;
+  cam.yaw -= dx * 0.006;
+  cam.pitch = clamp(cam.pitch + dy * 0.005, 0.12, 1.3);
+});
+canvas.addEventListener("pointerup", () => {
+  if (drag && !drag.moved) swing();
+  drag = null;
+});
+canvas.addEventListener("pointercancel", () => { drag = null; });
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  cam.dist = clamp(cam.dist + e.deltaY * 0.02, 7, 32);
+}, { passive: false });
+
+function updateCamera() {
+  const p = player.root.position;
+  camTarget.set(p.x, p.y + 2.4, p.z);
+  const flat = Math.cos(cam.pitch) * cam.dist;
+  camera.position.set(p.x + Math.sin(cam.yaw) * flat, camTarget.y + Math.sin(cam.pitch) * cam.dist, p.z + Math.cos(cam.yaw) * flat);
+  camera.lookAt(camTarget);
+}
+
+// ---------- HUD ----------
+
+const $ = id => document.getElementById(id);
+const $aura = $("aura"), $bagFill = $("bag-fill"), $bagText = $("bag-text"), $full = $("full");
+const $auto = $("auto"), $pets = $("pets"), $toast = $("toast"), $panel = $("panel"), $hatch = $("hatch"), $pops = $("pops");
+
+function refreshHud() {
+  $aura.textContent = fmt(state.aura);
+  $bagText.textContent = `${fmt(state.brainrot)} / ${fmt(capacity())} Brainrot`;
+  $bagFill.style.width = `${(100 * state.brainrot) / capacity()}%`;
+  $full.hidden = state.brainrot < capacity();
+  $auto.textContent = `Auto Swing: ${state.auto ? "On" : "Off"}`;
+  $auto.classList.toggle("off", !state.auto);
+  $pets.textContent = `Pets x${multiplier().toFixed(1)}`;
+  renderPanel();
+  dirty = true;
+}
+
+const projected = new THREE.Vector3();
+function popup(text, x, y, z, kind) {
+  projected.set(x, y, z).project(camera);
+  const el = document.createElement("div");
+  el.className = `pop ${kind}`;
+  el.textContent = text;
+  el.style.left = `${((projected.x + 1) / 2) * innerWidth}px`;
+  el.style.top = `${((1 - projected.y) / 2) * innerHeight}px`;
+  el.addEventListener("animationend", () => el.remove());
+  $pops.append(el);
+}
+
+let toastTimer;
+function showToast(text) {
+  $toast.textContent = text;
+  $toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $toast.classList.remove("show"), 2000);
+}
+
+$auto.addEventListener("click", () => {
+  state.auto = !state.auto;
+  refreshHud();
+});
+$pets.addEventListener("click", () => (panelKind === "pets" ? closePanel() : openPanel("pets")));
+
+// ---------- Panels ----------
+
+let panelKind = null;
+let panelHtml = "";
+
+function row(name, sub, right, rarity) {
+  const color = rarity ? ` r-${rarity.toLowerCase()}` : "";
+  return `<div class="row"><div><div class="name${color}">${name}</div><div class="sub">${sub}</div></div>${right}</div>`;
+}
+function ownedOrBuy(i, current, cost, action) {
+  if (i === current) return `<span class="tag">Equipped</span>`;
+  if (i < current) return `<span class="tag dim">Owned</span>`;
+  return `<button class="btn" type="button" data-action="${action}" data-arg="${i}"${state.aura < cost ? " disabled" : ""}>${fmt(cost)} Aura</button>`;
+}
+
+const RENDER = {
+  shop: () => `
+    <h2>Shop</h2>
+    <h3>Tools</h3>
+    ${TOOLS.map((t, i) => row(t.name, `Power ${fmt(t.power)}`, ownedOrBuy(i, state.tool, t.cost, "buyTool"))).join("")}
+    <h3>Backpacks</h3>
+    ${BAGS.map((b, i) => row(b.name, `Holds ${fmt(b.capacity)} Brainrot`, ownedOrBuy(i, state.bag, b.cost, "buyBag"))).join("")}`,
+  egg: () => `
+    <h2>Brainrot Egg</h2>
+    <p class="note">Your best ${PETS_EQUIPPED} pets follow you and boost every hit.</p>
+    ${PETS.map(p => row(p.name, `${p.rarity} · ${pct(p.bonus)} Brainrot`, `<span class="tag">${p.chance}%</span>`, p.rarity)).join("")}
+    <button class="btn wide" type="button" data-action="hatch"${state.aura < EGG_COST ? " disabled" : ""}>Hatch for ${EGG_COST} Aura</button>`,
+  pets: () => {
+    const owned = PETS.filter(p => state.pets[p.id]).reverse();
+    const equipped = equippedPets();
+    const list = owned.length === 0
+      ? `<p class="note">No pets yet. Hatch one at the purple EGGS pad near spawn.</p>`
+      : owned.map(p => row(p.name, `${p.rarity} · ${pct(p.bonus)} · ${equipped.filter(e => e === p).length} equipped`, `<span class="tag">x${state.pets[p.id]}</span>`, p.rarity)).join("");
+    return `
+      <h2>Pets</h2>
+      <p class="note">Multiplier <b>x${multiplier().toFixed(1)}</b>. Your best ${PETS_EQUIPPED} pets are equipped automatically.</p>
+      ${list}`;
+  },
+  gate: () => {
+    const zone = ZONES[state.zones];
+    const node = NODE_TYPES[zone.node];
+    return `
+      <h2>Unlock ${zone.name}</h2>
+      <p class="note">Each hit on a ${node.name} is worth <b>${node.value / NODE_TYPES.rock.value}x</b> a Rizz Rock.</p>
+      <button class="btn wide" type="button" data-action="unlock"${state.aura < zone.cost ? " disabled" : ""}>Unlock for ${fmt(zone.cost)} Aura</button>`;
+  },
+};
+
+function openPanel(kind) {
+  panelKind = kind;
+  $panel.hidden = false;
+  renderPanel();
+}
+function closePanel() {
+  panelKind = null;
+  panelHtml = "";
+  $panel.hidden = true;
+}
+// Only touch the DOM when the content changes, so a click is never lost to a re-render.
+function renderPanel() {
+  if (!panelKind) return;
+  const html = `<button class="btn close" type="button" data-action="close" aria-label="Close">X</button>${RENDER[panelKind]()}`;
+  if (html === panelHtml) return;
+  panelHtml = html;
+  $panel.innerHTML = html;
+}
+
+function spend(cost) {
+  if (state.aura < cost) throw new Error(`Tried to spend ${cost} Aura with only ${state.aura}`);
+  state.aura -= cost;
+}
+
+const ACTIONS = {
+  buyTool(i) {
+    spend(TOOLS[i].cost);
+    state.tool = i;
+    buildTool();
+  },
+  buyBag(i) {
+    spend(BAGS[i].cost);
+    state.bag = i;
+  },
+  hatch() {
+    spend(EGG_COST);
+    const pet = rollPet();
+    state.pets[pet.id] = (state.pets[pet.id] ?? 0) + 1;
+    buildPets();
+    showHatch(pet);
+  },
+  unlock() {
+    spend(ZONES[state.zones].cost);
+    scene.remove(gates[state.zones]);
+    state.zones++;
+    if (state.zones < ZONES.length) gates[state.zones].visible = true;
+    closePanel();
+  },
+  close() {
+    closePanel();
+  },
+};
+$panel.addEventListener("click", e => {
+  const button = e.target.closest("button[data-action]");
+  if (!button) return;
+  ACTIONS[button.dataset.action](Number(button.dataset.arg));
+  refreshHud();
+});
+
+let hatchTimers = [];
+function showHatch(pet) {
+  hatchTimers.forEach(clearTimeout);
+  $hatch.hidden = false;
+  $hatch.innerHTML = `<div class="egg"></div>`;
+  hatchTimers = [
+    setTimeout(() => {
+      $hatch.innerHTML = `
+        <div class="reveal">
+          <div class="rarity r-${pet.rarity.toLowerCase()}">${pet.rarity}</div>
+          <div class="pet-name">${pet.name}</div>
+          <p class="note">${pct(pet.bonus)} Brainrot per hit</p>
+        </div>`;
+    }, 1000),
+    setTimeout(() => { $hatch.hidden = true; }, 3200),
+  ];
+}
+$hatch.addEventListener("click", () => {
+  hatchTimers.forEach(clearTimeout);
+  $hatch.hidden = true;
+});
+
+// ---------- Pads, gates and zones ----------
+
+let currentPad = null;
+let gatePrompted = false;
+let currentZone = -1;
+
+function updateTriggers() {
+  const p = player.root.position;
+
+  const pad = PADS.find(pd => Math.hypot(pd.x - p.x, pd.z - p.z) < PAD_RADIUS) ?? null;
+  if (pad !== currentPad) {
+    if (currentPad && panelKind === currentPad.kind) closePanel();
+    currentPad = pad;
+    if (pad && pad.kind !== "sell") openPanel(pad.kind);
+  }
+  if (pad?.kind === "sell" && state.brainrot > 0) sell();
+
+  if (state.zones < ZONES.length) {
+    const fromGate = p.z - minZ();
+    if (fromGate < 0.05 && !gatePrompted) {
+      gatePrompted = true;
+      openPanel("gate");
+    }
+    if (fromGate > 3) {
+      gatePrompted = false;
+      if (panelKind === "gate") closePanel();
+    }
+  }
+
+  const zone = zoneAt(p.z);
+  if (zone !== currentZone) {
+    currentZone = zone;
+    showToast(ZONES[zone].name);
+  }
+}
+
+// ---------- Main loop ----------
+
+await document.fonts.load('72px "Lilita One"');
+placeNodes();
+buildWorld();
+player = makePlayer();
+buildTool();
+buildPets();
+refreshHud();
+resize();
+addEventListener("resize", resize);
+addEventListener("pagehide", saveState);
+
+let last = performance.now();
+let time = 0;
+let saveClock = 0;
+
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  time += dt;
+
+  updatePlayer(dt);
+  if (state.auto && state.brainrot < capacity() && nearestNode()) swing();
+  updateNodes(dt);
+  updatePets(dt, time);
+  updateTriggers();
+  updateCamera();
+  eggMesh.rotation.y += dt;
+  eggMesh.position.y = 4.4 + Math.sin(time * 2) * 0.3;
+
+  saveClock += dt;
+  if (saveClock > 3) {
+    saveClock = 0;
+    if (dirty) {
+      saveState();
+      dirty = false;
+    }
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
