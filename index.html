@@ -358,25 +358,21 @@ const RARITIES = [
 ];
 
 const WORLDS = [
-  { name: "Soccer Stadium", ball: "soccer", icon: "⚽", zones: ["Training Pitch", "Penalty Box", "Golden Goal"], rebirths: 0, egg: "Soccer Egg",
+  { name: "Soccer Stadium", ball: "soccer", icon: "⚽", zones: ["Training Pitch", "Penalty Box", "Golden Goal"], rebirths: 0, egg: "Soccer Egg", gear: "cleats", gearName: "Cleats", action: "kick",
     accent: 0x3b82f6, kit: 0x2563eb, seats: 0x1e3a8a, wall: 0x1d4ed8, skyTop: 0x2f7fe0, skyLow: 0xc4e6ff },
-  { name: "Basketball Arena", ball: "basketball", icon: "🏀", zones: ["Practice Court", "Three-Point Line", "Slam Dunk Zone"], rebirths: 1, egg: "Hoops Egg",
+  { name: "Basketball Arena", ball: "basketball", icon: "🏀", zones: ["Practice Court", "Three-Point Line", "Slam Dunk Zone"], rebirths: 1, egg: "Hoops Egg", gear: "bands", gearName: "Wristbands", action: "slam",
     accent: 0xf97316, kit: 0xdc2626, seats: 0x7f1d1d, wall: 0xb91c1c, skyTop: 0x4b63c9, skyLow: 0xffd6ae },
-  { name: "Football Field", ball: "football", icon: "🏈", zones: ["Practice Field", "Midfield", "Hail Mary Zone"], rebirths: 3, egg: "Gridiron Egg",
+  { name: "Football Field", ball: "football", icon: "🏈", zones: ["Practice Field", "Midfield", "Hail Mary Zone"], rebirths: 3, egg: "Gridiron Egg", gear: "pads", gearName: "Shoulder Pads", action: "tackle",
     accent: 0x22c55e, kit: 0x15803d, seats: 0x14532d, wall: 0x166534, skyTop: 0x3a78d0, skyLow: 0xdcefff },
-  { name: "Baseball Park", ball: "baseball", icon: "⚾", zones: ["Bullpen", "Infield", "Home Run Derby"], rebirths: 6, egg: "Diamond Egg",
+  { name: "Baseball Park", ball: "baseball", icon: "⚾", zones: ["Bullpen", "Infield", "Home Run Derby"], rebirths: 6, egg: "Diamond Egg", gear: "bat", gearName: "Bat", action: "swing",
     accent: 0xef4444, kit: 0x1e3a8a, seats: 0x1e3a8a, wall: 0x14532d, skyTop: 0x6a5acd, skyLow: 0xffc9b0 },
-  { name: "Hockey Rink", ball: "puck", icon: "🏒", zones: ["Warm-Up Ice", "Blue Line", "Championship Ice"], rebirths: 10, egg: "Frost Egg",
+  { name: "Hockey Rink", ball: "puck", icon: "🏒", zones: ["Warm-Up Ice", "Blue Line", "Championship Ice"], rebirths: 10, egg: "Frost Egg", gear: "stick", gearName: "Hockey Stick", action: "slap",
     accent: 0x38bdf8, kit: 0x0f172a, seats: 0x0c4a6e, wall: 0xf1f5f9, skyTop: 0x1e3a8a, skyLow: 0xd3eaff },
 ];
 
-const GEAR = [
-  ["Foam Bat", "bat", "foam"], ["Wooden Bat", "bat", "wood"], ["Tennis Racket", "racket", "red"],
-  ["Hockey Stick", "stick", "wood"], ["Golf Club", "club", "steel"], ["Aluminum Bat", "bat", "steel"],
-  ["Cricket Bat", "cricket", "wood"], ["Carbon Racket", "racket", "carbon"], ["Pro Hockey Stick", "stick", "carbon"],
-  ["Titanium Club", "club", "titanium"], ["Golden Bat", "bat", "gold"], ["Golden Racket", "racket", "gold"],
-  ["Diamond Bat", "bat", "diamond"], ["Diamond Stick", "stick", "diamond"], ["Champion Bat", "bat", "champion"],
-].map(([name, type, finish], tier) => ({ name, type, finish, tier }));
+// Gear levels are shared by every world; each world turns them into its own sport's gear.
+const GEAR_TIERS = ["Rookie", "Practice", "Club", "Varsity", "College", "Pro", "All-Star", "Carbon", "Titanium", "MVP", "Golden", "Platinum", "Diamond", "Legend", "Champion"];
+const gearName = (w, tier) => `${GEAR_TIERS[tier]} ${WORLDS[w].gearName}`;
 
 const BAGS = [
   "Pocket Pouch", "Drawstring Bag", "Gym Bag", "Sports Backpack", "Duffel Bag", "Team Duffel", "Ball Bag", "Equipment Bag",
@@ -384,17 +380,24 @@ const BAGS = [
 ].map((name, tier) => ({ name, tier }));
 const BAG_COLORS = [0x6b7280, 0x16a34a, 0x2563eb, 0xdc2626, 0x7c3aed, 0x0891b2, 0xea580c, 0x334155, 0xdb2777, 0x0f766e, 0xfbbf24, 0xe5e7eb, 0x67e8f9, 0xa855f7, 0xf0abfc];
 
-const FINISH = {
-  foam: { color: 0xfb923c, roughness: 0.9 },
-  wood: { color: 0xc68642, roughness: 0.55 },
-  red: { color: 0xef4444, roughness: 0.35, metalness: 0.2 },
-  steel: { color: 0xd1d5db, roughness: 0.22, metalness: 0.9 },
-  carbon: { color: 0x1f2937, roughness: 0.28, metalness: 0.5 },
-  titanium: { color: 0x93c5fd, roughness: 0.2, metalness: 0.9 },
-  gold: { color: 0xfbbf24, roughness: 0.18, metalness: 1 },
-  diamond: { color: 0x67e8f9, roughness: 0.05, metalness: 0.2, emissive: 0x0891b2, emissiveIntensity: 0.6 },
-  champion: { color: 0xf0abfc, roughness: 0.15, metalness: 0.6, emissive: 0xc026d3, emissiveIntensity: 0.9 },
-};
+// The look of each gear level, in the same order as GEAR_TIERS.
+const FINISHES = [
+  { color: 0x9ca3af, roughness: 0.8 },
+  { color: 0xef4444, roughness: 0.45 },
+  { color: 0x3b82f6, roughness: 0.45 },
+  { color: 0x22c55e, roughness: 0.45 },
+  { color: 0xf97316, roughness: 0.4 },
+  { color: 0x111827, roughness: 0.25, metalness: 0.3 },
+  { color: 0xf8fafc, roughness: 0.3 },
+  { color: 0x1f2937, roughness: 0.28, metalness: 0.6 },
+  { color: 0x93c5fd, roughness: 0.2, metalness: 0.9 },
+  { color: 0xa855f7, roughness: 0.25, metalness: 0.5 },
+  { color: 0xfbbf24, roughness: 0.18, metalness: 1 },
+  { color: 0xe5e7eb, roughness: 0.15, metalness: 1 },
+  { color: 0x67e8f9, roughness: 0.05, metalness: 0.2, emissive: 0x0891b2, emissiveIntensity: 0.6 },
+  { color: 0xff3d6e, roughness: 0.2, metalness: 0.4, emissive: 0xbe123c, emissiveIntensity: 0.6 },
+  { color: 0xf0abfc, roughness: 0.15, metalness: 0.6, emissive: 0xc026d3, emissiveIntensity: 0.9 },
+];
 
 const PETS = [
   ["Kickoff Pup", 0, 0, "dog", 0xd9a066, 0xf5e1c0],
@@ -846,8 +849,8 @@ function std(color, opts = {}) {
   }
   return matCache.get(key);
 }
-function finishMat(finish) {
-  const { color, ...rest } = FINISH[finish];
+function finishMat(tier) {
+  const { color, ...rest } = FINISHES[tier];
   return std(color, rest);
 }
 
@@ -1041,41 +1044,83 @@ function nodeModel(def, kind, rand) {
   return mergeByMaterial(g);
 }
 
-function gearModel(gear) {
+const GRIP = () => std(0x111827, { roughness: 0.85 });
+const TRIM = () => std(0xf8fafc, { roughness: 0.5 });
+
+// Held in the right hand, pointing along +y from the grip.
+function batModel(m) {
   const g = new THREE.Group();
-  const m = finishMat(gear.finish);
-  const grip = std(0x111827, { roughness: 0.85 });
-  const tape = std(0xf8fafc, { roughness: 0.7 });
-  switch (gear.type) {
+  part(g, GEO.cyl, GRIP(), [0, 0.12, 0], [0.065, 0.5, 0.065]);
+  part(g, GEO.cyl, m, [0, -0.15, 0], [0.09, 0.06, 0.09]);
+  part(g, new THREE.CylinderGeometry(0.17, 0.065, 1.15, 16), m, [0, 0.93, 0]);
+  part(g, GEO.sphere, m, [0, 1.5, 0], [0.17, 0.06, 0.17]);
+  return g;
+}
+function stickModel(m) {
+  const g = new THREE.Group();
+  part(g, GEO.cyl, GRIP(), [0, 0.15, 0], [0.06, 0.45, 0.06]);
+  part(g, GEO.box, m, [0, 1.0, 0], [0.09, 1.8, 0.07]);
+  part(g, new RoundedBoxGeometry(0.6, 0.18, 0.09, 2, 0.04), m, [0.24, 1.86, 0], 1, [0, 0, -0.3]);
+  part(g, GEO.box, TRIM(), [0.26, 1.86, 0], [0.32, 0.12, 0.095], [0, 0, -0.3]);
+  return g;
+}
+// Worn on each foot, over the shoe.
+function cleatModel(m) {
+  const g = new THREE.Group();
+  part(g, new RoundedBoxGeometry(0.47, 0.18, 0.62, 2, 0.06), m, [0, 0, 0]);
+  part(g, GEO.box, TRIM(), [0, 0.095, 0.12], [0.22, 0.02, 0.24]);
+  for (const side of [-1, 1]) part(g, GEO.box, TRIM(), [side * 0.236, 0.02, -0.04], [0.01, 0.06, 0.3]);
+  for (const [x, z] of [[-0.14, 0.2], [0.14, 0.2], [-0.14, -0.04], [0.14, -0.04], [-0.12, -0.22], [0.12, -0.22]]) {
+    part(g, GEO.box, std(0xe5e7eb, { roughness: 0.4 }), [x, -0.11, z], [0.07, 0.05, 0.07]);
+  }
+  return g;
+}
+// A square cuff around each forearm, open in the middle so it reads as a band.
+function bandModel(m) {
+  const g = new THREE.Group();
+  const trim = TRIM();
+  for (const side of [-1, 1]) {
+    part(g, GEO.box, m, [side * 0.215, 0, 0], [0.07, 0.2, 0.52]);
+    part(g, GEO.box, m, [0, 0, side * 0.225], [0.36, 0.2, 0.07]);
+    part(g, GEO.box, trim, [side * 0.252, 0, 0], [0.01, 0.05, 0.52]);
+    part(g, GEO.box, trim, [0, 0, side * 0.262], [0.36, 0.05, 0.01]);
+  }
+  return g;
+}
+// Worn over the shoulders.
+function padsModel(m) {
+  const g = new THREE.Group();
+  for (const side of [-1, 1]) part(g, new RoundedBoxGeometry(0.62, 0.26, 0.66, 2, 0.1), m, [side * 0.42, 0.1, 0], 1, [0, 0, side * -0.25]);
+  part(g, new RoundedBoxGeometry(0.9, 0.42, 0.08, 2, 0.04), m, [0, -0.22, 0.28]);
+  part(g, GEO.box, TRIM(), [0, -0.22, 0.325], [0.5, 0.05, 0.02]);
+  return g;
+}
+
+// One piece of a world's gear, for shop pictures.
+function gearModel(w, tier) {
+  const m = finishMat(tier);
+  const g = new THREE.Group();
+  switch (WORLDS[w].gear) {
     case "bat":
-      part(g, GEO.cyl, grip, [0, 0.12, 0], [0.065, 0.5, 0.065]);
-      part(g, GEO.cyl, m, [0, -0.15, 0], [0.09, 0.06, 0.09]);
-      part(g, new THREE.CylinderGeometry(0.17, 0.065, 1.15, 24), m, [0, 0.93, 0]);
-      part(g, GEO.sphere, m, [0, 1.5, 0], [0.17, 0.06, 0.17]);
+    case "stick": {
+      const held = WORLDS[w].gear === "bat" ? batModel(m) : stickModel(m);
+      held.rotation.z = -0.7;
+      g.add(held);
       break;
-    case "racket":
-      part(g, GEO.cyl, grip, [0, 0.2, 0], [0.06, 0.5, 0.06]);
-      part(g, GEO.cyl, m, [0, 0.6, 0], [0.04, 0.35, 0.04]);
-      part(g, GEO.torus, m, [0, 1.15, 0], [0.34, 0.46, 0.5]);
-      for (let i = -3; i <= 3; i++) {
-        part(g, GEO.box, tape, [i * 0.08, 1.15, 0], [0.012, 0.86 * Math.sqrt(1 - (i / 4.2) ** 2), 0.012]);
-        part(g, GEO.box, tape, [0, 1.15 + i * 0.11, 0], [0.64 * Math.sqrt(1 - (i / 4.2) ** 2), 0.012, 0.012]);
+    }
+    case "cleats":
+      g.add(cleatModel(m));
+      break;
+    case "bands":
+      for (const side of [-1, 1]) {
+        const band = bandModel(m);
+        band.position.x = side * 0.3;
+        band.rotation.z = side * -0.3;
+        g.add(band);
       }
       break;
-    case "stick":
-      part(g, GEO.cyl, grip, [0, 0.1, 0], [0.06, 0.4, 0.06]);
-      part(g, GEO.box, m, [0, 0.85, 0], [0.09, 1.5, 0.06]);
-      part(g, new RoundedBoxGeometry(0.12, 0.2, 0.6, 2, 0.04), m, [0, 1.6, 0.25], 1, [0.2, 0, 0]);
-      part(g, GEO.box, tape, [0, 1.6, 0.25], [0.125, 0.12, 0.3], [0.2, 0, 0]);
-      break;
-    case "club":
-      part(g, GEO.cyl, grip, [0, 0.12, 0], [0.055, 0.45, 0.055]);
-      part(g, GEO.cyl, m, [0, 0.95, 0], [0.025, 1.3, 0.025]);
-      part(g, new RoundedBoxGeometry(0.2, 0.16, 0.42, 2, 0.05), m, [0, 1.62, 0.13], 1, [0.35, 0, 0]);
-      break;
-    case "cricket":
-      part(g, GEO.cyl, grip, [0, 0.15, 0], [0.06, 0.55, 0.06]);
-      part(g, new RoundedBoxGeometry(0.34, 1.05, 0.13, 2, 0.04), m, [0, 0.98, 0]);
+    case "pads":
+      g.add(padsModel(m));
       break;
   }
   return g;
@@ -1378,9 +1423,6 @@ function makePlayer() {
   const legL = leg(-1);
   const legR = leg(1);
 
-  const gear = new THREE.Group();
-  gear.rotation.x = Math.PI / 2;
-  armR.hand.add(gear);
   const bag = new THREE.Group();
   bag.position.set(0, 0.5, -0.42);
   torso.add(bag);
@@ -1389,14 +1431,42 @@ function makePlayer() {
   body.rotation.y = Math.PI;
   scene.add(root);
   return {
-    root, body, hips, torso, neck, armL, armR, legL, legR, gear, bag, kitMat, capMat,
+    root, body, hips, torso, neck, armL, armR, legL, legR, gearParts: [], bag, kitMat, capMat,
     velocity: new THREE.Vector3(), facing: Math.PI, swingT: 1, phase: 0, run: 0, air: 0, land: 0, bagPunch: 0, lastStep: 0,
   };
 }
 
+function equipGear(w, tier) {
+  for (const piece of player.gearParts) piece.removeFromParent();
+  player.gearParts = [];
+  const m = finishMat(tier);
+  const attach = (parent, piece, p, rx = 0) => {
+    piece.position.set(...p);
+    piece.rotation.x = rx;
+    parent.add(piece);
+    player.gearParts.push(piece);
+  };
+  switch (WORLDS[w].gear) {
+    case "bat":
+      attach(player.armR.hand, batModel(m), [0, 0, 0], Math.PI / 2);
+      break;
+    case "stick":
+      attach(player.armR.hand, stickModel(m), [0, 0, 0], Math.PI / 2 + 0.6);
+      break;
+    case "cleats":
+      for (const leg of [player.legL, player.legR]) attach(leg.knee, cleatModel(m), [0, -0.41, 0.07]);
+      break;
+    case "bands":
+      for (const arm of [player.armL, player.armR]) attach(arm.elbow, bandModel(m), [0, -0.3, 0]);
+      break;
+    case "pads":
+      attach(player.torso, padsModel(m), [0, 0.98, 0]);
+      break;
+  }
+}
+
 function dressPlayer() {
-  player.gear.clear();
-  player.gear.add(gearModel(GEAR[state.gear]));
+  equipGear(state.world, state.gear);
   player.bag.clear();
   player.bag.add(bagModel(state.bag));
   player.kitMat.color.set(WORLDS[state.world].kit);
@@ -2111,27 +2181,63 @@ function animatePlayer(dt, moving, airborne, speed) {
   P.hips.rotation.y = -s * 0.08 * run;
   P.neck.rotation.x = -0.1 * run;
 
+  P.body.position.set(0, 0, 0);
   P.swingT = Math.min(1, P.swingT + dt / SWING_TIME);
-  if (P.swingT < 1) {
-    const t = P.swingT;
-    let shoulder, twist, elbow;
-    if (t < 0.3) {
-      const k = smooth(t / 0.3);
-      shoulder = lerp(-0.3, -2.8, k); twist = lerp(0, 0.6, k); elbow = lerp(-0.5, -0.9, k);
-    } else if (t < 0.55) {
-      const k = smooth((t - 0.3) / 0.25);
-      shoulder = lerp(-2.8, -0.25, k); twist = lerp(0.6, -0.55, k); elbow = lerp(-0.9, -0.1, k);
-    } else {
-      const k = smooth((t - 0.55) / 0.45);
-      shoulder = lerp(-0.25, -0.3, k); twist = lerp(-0.55, 0, k); elbow = lerp(-0.1, -0.5, k);
-    }
-    P.armR.shoulder.rotation.x = shoulder;
-    P.armR.shoulder.rotation.z = 0.15;
-    P.armR.elbow.rotation.x = elbow;
-    P.torso.rotation.y = twist;
-  }
+  if (P.swingT < 1) actionPose(P, P.swingT, WORLDS[world.index].action);
   P.bagPunch = Math.max(0, P.bagPunch - dt * 6);
   P.bag.scale.setScalar(1 + P.bagPunch * 0.18);
+}
+
+// Adds the current world's hit move on top of the walk/idle pose. The wind-up peaks at 30%,
+// the hit lands between 30% and 55% (when hit() fires), then the pose eases back.
+function actionPose(P, t, action) {
+  const wind = t < 0.3 ? smooth(t / 0.3) : t < 0.55 ? 1 - smooth((t - 0.3) / 0.25) : 0;
+  const strike = t < 0.3 ? 0 : t < 0.55 ? smooth((t - 0.3) / 0.25) : 1 - smooth((t - 0.55) / 0.45);
+  const { armL, armR, legL, legR, torso, hips } = P;
+  switch (action) {
+    case "kick":
+      legR.hip.rotation.x += 0.9 * wind - 1.5 * strike;
+      legR.knee.rotation.x += 1.3 * wind - legR.knee.rotation.x * strike;
+      torso.rotation.x += 0.1 * wind - 0.25 * strike;
+      armL.shoulder.rotation.z -= 0.6 * (wind + strike);
+      armR.shoulder.rotation.z += 0.6 * (wind + strike);
+      break;
+    case "slam":
+      for (const arm of [armL, armR]) {
+        arm.shoulder.rotation.x += -2.7 * wind - 0.6 * strike;
+        arm.elbow.rotation.x += 0.2 * wind;
+      }
+      hips.position.y += 0.35 * wind - 0.1 * strike;
+      torso.rotation.x += 0.35 * strike;
+      break;
+    case "tackle": {
+      const lunge = 0.9 * strike;
+      P.body.position.set(Math.sin(P.body.rotation.y) * lunge, 0, Math.cos(P.body.rotation.y) * lunge);
+      torso.rotation.x += -0.1 * wind + 0.6 * strike;
+      for (const arm of [armL, armR]) {
+        arm.shoulder.rotation.x += 0.4 * wind - 1.3 * strike;
+        arm.elbow.rotation.x -= 0.6 * strike;
+      }
+      legL.hip.rotation.x -= 0.5 * strike;
+      legR.hip.rotation.x += 0.4 * strike;
+      break;
+    }
+    case "swing":
+      armR.shoulder.rotation.x += -2.5 * wind + 0.05 * strike;
+      armL.shoulder.rotation.x += -2.2 * wind;
+      armL.shoulder.rotation.z -= 0.3 * (wind + strike);
+      armR.shoulder.rotation.z += 0.15 * (wind + strike);
+      armR.elbow.rotation.x += -0.4 * wind + 0.4 * strike;
+      torso.rotation.y += 0.6 * wind - 0.55 * strike;
+      break;
+    case "slap":
+      armR.shoulder.rotation.x += 1.6 * wind - 0.6 * strike;
+      armL.shoulder.rotation.x += 0.9 * wind - 0.4 * strike;
+      torso.rotation.y += 0.8 * wind - 0.6 * strike;
+      torso.rotation.x += 0.25 * (wind + strike);
+      hips.position.y -= 0.12 * (wind + strike);
+      break;
+  }
 }
 
 function nearestNode() {
@@ -2357,11 +2463,10 @@ async function buildThumbnails(onProgress) {
   renderer.setSize(160, 160, false);
   renderer.setClearColor(0x2b335c);
   const jobs = [
-    ...GEAR.map(gear => () => {
-      const model = gearModel(gear);
-      model.rotation.z = -0.7;
-      thumbs.gear.push(renderThumb(model, 0.3));
-    }),
+    ...WORLDS.flatMap((def, w) => GEAR_TIERS.map((name, tier) => () => {
+      thumbs.gear[w] ??= [];
+      thumbs.gear[w][tier] = renderThumb(gearModel(w, tier), 0.5);
+    })),
     ...BAGS.map(bag => () => thumbs.bag.push(renderThumb(bagModel(bag.tier), 0.6))),
     ...PETS.map(pet => () => thumbs.pet.push(renderThumb(petTemplate(pet).clone(), 0.45))),
     ...WORLDS.map((def, w) => () => thumbs.egg.push(renderThumb(eggModel(w, false).group, 0.3))),
@@ -2667,7 +2772,7 @@ const RENDER = {
     <div class="controls">
       <span><kbd>WASD</kbd>Move</span>
       <span><kbd>Space</kbd>Jump</span>
-      <span><kbd>Click</kbd>Swing</span>
+      <span><kbd>Click</kbd>Hit</span>
       <span><kbd>Drag</kbd>Look around</span>
       <span><kbd>Scroll</kbd>Zoom</span>
       <span><kbd>Esc</kbd>Pause</span>
@@ -2681,7 +2786,7 @@ const RENDER = {
       <button class="tab${shopTab === "bags" ? " on" : ""}" type="button" data-action="tab" data-arg="bags">Bags</button>
     </div>
     ${shopTab === "gear"
-      ? GEAR.map(g => shopRow(thumbs.gear[g.tier], g.name, `${fmt(gearPower(g.tier))} ${g.tier === 0 ? "ball" : "balls"} per hit`, g.tier, state.gear, gearCost(g.tier), "buyGear")).join("")
+      ? GEAR_TIERS.map((name, tier) => shopRow(thumbs.gear[state.world][tier], gearName(state.world, tier), `${fmt(gearPower(tier))} ${tier === 0 ? "ball" : "balls"} per hit`, tier, state.gear, gearCost(tier), "buyGear")).join("")
       : BAGS.map(b => shopRow(thumbs.bag[b.tier], b.name, `Holds ${fmt(bagCapacity(b.tier))} balls`, b.tier, state.bag, bagCost(b.tier), "buyBag")).join("")}`,
   egg: () => {
     const cost = eggCost(state.world);
@@ -3070,6 +3175,7 @@ function trailerWorld(w) {
   }
   player.kitMat.color.set(WORLDS[w].kit);
   player.capMat.color.set(WORLDS[w].accent);
+  equipGear(w, state.gear);
   buildFollowers(PETS.filter(pet => pet.world === w && pet.rarity > 0).reverse());
 }
 

@@ -8,14 +8,14 @@ A 3D Roblox-style simulator game that runs in the browser, built for Chromebooks
 | --- | --- |
 | WASD or arrow keys | Move |
 | Space | Jump |
-| Click | Swing your gear |
+| Click | Hit with your gear |
 | Drag | Look around |
 | Scroll | Zoom |
 | Esc | Pause menu |
 
-1. Swing at piles of balls to fill your bag. **Auto Swing** swings for you.
+1. Hit piles of balls to fill your bag. **Auto** hits for you.
 2. Stand on a green **CASH** pad to sell your bag for dollars.
-3. Buy better gear (more balls per hit) and bigger bags at the **GEAR SHOP**.
+3. Buy better gear (more balls per hit) and bigger bags at the **GEAR SHOP**. Your gear level carries across worlds, and each world turns it into that sport's gear.
 4. Hatch pets at the **EGGS** pad. Each world has its own egg with 5 pets, from Common to Legendary. Your best 4 pets follow you and boost your cash.
 5. Unlock zones at the gates. Each zone's balls are worth 3x more.
 6. At the end of each world, a portal unlocks the next one. Later worlds also need rebirths.
@@ -32,13 +32,13 @@ Progress saves automatically every few seconds and right after every purchase. W
 
 ## Worlds
 
-| World | Zones | Needs |
-| --- | --- | --- |
-| Soccer Stadium | Training Pitch, Penalty Box, Golden Goal | |
-| Basketball Arena | Practice Court, Three-Point Line, Slam Dunk Zone | 1 rebirth |
-| Football Field | Practice Field, Midfield, Hail Mary Zone | 3 rebirths |
-| Baseball Park | Bullpen, Infield, Home Run Derby | 6 rebirths |
-| Hockey Rink | Warm-Up Ice, Blue Line, Championship Ice | 10 rebirths |
+| World | Gear | Zones | Needs |
+| --- | --- | --- | --- |
+| Soccer Stadium | Cleats (kick) | Training Pitch, Penalty Box, Golden Goal | |
+| Basketball Arena | Wristbands (slam dunk) | Practice Court, Three-Point Line, Slam Dunk Zone | 1 rebirth |
+| Football Field | Shoulder pads (tackle) | Practice Field, Midfield, Hail Mary Zone | 3 rebirths |
+| Baseball Park | Bat (swing) | Bullpen, Infield, Home Run Derby | 6 rebirths |
+| Hockey Rink | Hockey stick (slapshot) | Warm-Up Ice, Blue Line, Championship Ice | 10 rebirths |
 
 The economy is tuned so a full run takes roughly 3 to 4 hours.
 
