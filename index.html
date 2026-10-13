@@ -6,31 +6,28 @@
 <title>Sports Legends Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;800&family=Graduate&family=Russo+One&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
 <style>
-/* Layout: full-bleed 3D stadium; skewed broadcast-scoreboard chips pinned top-left and top-right; action buttons bottom-center; one modal panel centered. */
+/* Layout: the 3D game fills the screen. Cash and bag sit top-left, three menu buttons stack on the left edge, pause sits top-right, and every menu opens as one centered panel. */
 :root {
-  --ink: #0a1430;
-  --panel: #111d3d;
-  --panel-row: #1a2a52;
-  --line: #2b3f70;
-  --paper: #ffffff;
-  --dim: #aebbd6;
-  --cash: #22c55e;
-  --gold: #fbbf24;
-  --hot: #ef4444;
-  --muted: #4b5a7c;
-  --accent: #3b82f6;
-  --scrim: rgb(4 9 24 / 0.78);
+  --ink: #141a33;
+  --panel: #1f2647;
+  --row: #2b335c;
+  --text: #ffffff;
+  --dim: #b7bfdc;
+  --green: #2fbf5b;
+  --blue: #3d8bfd;
+  --purple: #9a67ff;
+  --yellow: #ffc83d;
+  --red: #ef4f4f;
+  --gray: #5c6487;
   --sky: #9fd3ff;
-  --common: #cbd5e1;
-  --uncommon: #4ade80;
-  --rare: #38bdf8;
-  --epic: #c084fc;
-  --legendary: #fbbf24;
-  --display: "Graduate", "Rockwell", Georgia, serif;
-  --score: "Russo One", "Arial Black", system-ui, sans-serif;
-  --body: "Barlow", system-ui, sans-serif;
+  --common: #d3d9e8;
+  --uncommon: #5ee08a;
+  --rare: #4cc3ff;
+  --epic: #c58cff;
+  --legendary: #ffc83d;
+  --font: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
   color-scheme: dark;
 }
 [hidden] { display: none !important; }
@@ -39,200 +36,149 @@ body {
   margin: 0;
   overflow: hidden;
   background: var(--sky);
-  color: var(--paper);
-  font-family: var(--body);
+  color: var(--text);
+  font-family: var(--font);
   font-weight: 600;
   user-select: none;
   -webkit-user-select: none;
 }
+button { font: inherit; }
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
 
-/* ---------- Scoreboard chips ---------- */
-.chip {
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px 16px 6px 12px;
-  background: var(--panel);
-  border-left: 6px solid var(--accent);
-  box-shadow: 0 4px 0 var(--ink);
-  transform: skewX(-12deg);
+/* Text drawn over the 3D world gets a dark outline so it reads on grass, wood and ice. */
+.outlined { paint-order: stroke fill; -webkit-text-stroke: 6px var(--ink); }
+
+/* ---------- HUD ---------- */
+#hud {
+  position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 16px;
+  display: grid; gap: 8px; justify-items: start; pointer-events: none;
 }
-.chip > * { transform: skewX(12deg); }
-#hud-left {
-  position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 22px;
-  display: grid; gap: 10px; justify-items: start; pointer-events: none;
-}
-.cash { border-left-color: var(--cash); }
-.badge {
+#money { display: flex; align-items: center; gap: 8px; font-size: 38px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#money.bump { animation: bump 0.25s ease-out; }
+@keyframes bump { 50% { transform: scale(1.12); } }
+.coin {
   display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
-  background: var(--cash); color: var(--ink); font-family: var(--score); font-size: 21px;
-  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25);
+  background: var(--green); border: 3px solid var(--ink); font-size: 20px; -webkit-text-stroke: 0;
 }
-#cash { font-family: var(--score); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; min-width: 3ch; }
-#cash.bump { animation: bump 0.25s ease-out; }
-@keyframes bump { 50% { transform: skewX(12deg) scale(1.18); } }
-.bag { position: relative; width: 250px; max-width: calc(100vw - 60px); height: 32px; padding: 0; overflow: hidden; }
-.chip > .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: 0.85; transform: none; transition: width 0.15s; }
-#bag-text { position: relative; width: 100%; text-align: center; font-family: var(--score); font-size: 17px; font-variant-numeric: tabular-nums; }
-.small { font-size: 14px; color: var(--dim); padding-block: 4px; }
-.small b { color: var(--gold); font-weight: 800; }
+#bag { position: relative; width: 190px; height: 24px; border-radius: 12px; border: 3px solid var(--ink); background: rgb(20 26 51 / 0.7); overflow: hidden; }
+#bag-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--blue); transition: width 0.15s; }
+#bag.full #bag-fill { background: var(--red); }
+#bag-text { position: relative; display: block; text-align: center; font-size: 15px; line-height: 18px; font-variant-numeric: tabular-nums; }
+#full { margin: 0; font-size: 16px; color: var(--yellow); -webkit-text-stroke: 4px var(--ink); }
 
-#hud-right {
-  position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 22px;
-  display: flex; gap: 10px; align-items: start;
-}
-.place { flex-direction: column; align-items: flex-end; gap: 0; padding: 6px 18px; pointer-events: none; }
-#place-world { font-family: var(--score); font-size: 18px; }
-#place-zone { font-size: 14px; color: var(--dim); }
-.icon-btn {
-  width: 46px; height: 46px; display: grid; place-items: center; padding: 0;
-  background: var(--panel); color: var(--paper); border: 0; border-left: 6px solid var(--accent);
-  box-shadow: 0 4px 0 var(--ink); transform: skewX(-12deg); cursor: pointer;
-}
-.icon-btn svg { transform: skewX(12deg); }
-.icon-btn:focus-visible, .btn:focus-visible, .tab:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+#side { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); display: grid; gap: 10px; }
+#pause-btn { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px; width: 54px; height: 50px; padding: 0; display: grid; place-items: center; }
+body.paused #side, body.paused #pause-btn,
+body.hatching #hud, body.hatching #side, body.hatching #pause-btn, body.hatching #panel { visibility: hidden; }
 
-#help {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom, 0px));
-  width: max-content; max-width: calc(100% - 32px); box-sizing: border-box;
-  margin: 0; padding: 4px 14px; text-align: center; font-size: 15px; letter-spacing: 0.02em;
-  background: rgb(10 20 48 / 0.6); pointer-events: none;
+/* ---------- Buttons: flat color, dark rim, thicker bottom edge ---------- */
+.btn, .sq {
+  color: var(--text); font-weight: 700; cursor: pointer;
+  border: 3px solid var(--ink); border-bottom-width: 6px; border-radius: 14px;
+  text-shadow: 0 2px 0 rgb(0 0 0 / 0.25);
 }
-#bar {
-  position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; pointer-events: none;
-}
-#bar .btn { pointer-events: auto; }
+.btn:hover:not(:disabled), .sq:hover { filter: brightness(1.08); }
+.btn:active:not(:disabled), .sq:active { transform: translateY(2px); border-bottom-width: 4px; }
+.btn:focus-visible, .sq:focus-visible, .tab:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.btn { padding: 8px 18px; font-size: 18px; }
+.btn.wide { width: 100%; font-size: 20px; padding-block: 10px; }
+.btn:disabled { background: var(--gray); color: var(--dim); text-shadow: none; cursor: not-allowed; }
+.sq { width: 78px; height: 62px; padding: 0; display: grid; place-content: center; font-size: 17px; line-height: 1.1; }
+.sq small { font-size: 13px; font-weight: 600; }
+.green { background: var(--green); }
+.blue { background: var(--blue); }
+.purple { background: var(--purple); }
+.yellow { background: var(--yellow); color: var(--ink); text-shadow: none; }
+.red { background: var(--red); }
+.gray { background: var(--gray); }
 
-/* ---------- Buttons ---------- */
-.btn {
-  font-family: var(--score); font-size: 18px; letter-spacing: 0.02em; color: var(--paper);
-  background: var(--accent); border: 0; padding: 10px 22px;
-  transform: skewX(-12deg); box-shadow: 0 5px 0 var(--ink); cursor: pointer;
-}
-.btn:hover:not(:disabled) { filter: brightness(1.12); }
-.btn:active:not(:disabled) { transform: skewX(-12deg) translateY(3px); box-shadow: 0 2px 0 var(--ink); }
-.btn:disabled { background: var(--muted); color: var(--dim); cursor: not-allowed; }
-.btn.go { background: var(--cash); }
-.btn.gold { background: var(--gold); color: var(--ink); }
-.btn.hot { background: var(--hot); }
-.btn.off { background: var(--muted); }
-.btn.wide { width: 100%; font-size: 21px; padding-block: 12px; }
-
-/* ---------- Toast, banners, popups ---------- */
+/* ---------- Toast, popups, transitions ---------- */
 #toast {
-  position: fixed; top: 15%; left: 16px; right: 16px; display: grid; justify-items: center; gap: 6px;
-  opacity: 0; transform: translateY(-10px) scale(0.96); transition: opacity 0.35s, transform 0.35s; pointer-events: none;
+  position: fixed; top: 16%; left: 16px; right: 16px; display: grid; justify-items: center; gap: 4px; text-align: center;
+  opacity: 0; transform: scale(0.94); transition: opacity 0.3s, transform 0.3s; pointer-events: none;
 }
 #toast.show { opacity: 1; transform: none; }
-#toast-kicker {
-  font-family: var(--score); font-size: 16px; letter-spacing: 0.18em; padding: 4px 14px;
-  background: var(--accent); transform: skewX(-12deg); box-shadow: 0 3px 0 var(--ink);
-}
-#toast-title {
-  font-family: var(--display); font-size: clamp(34px, 6.5vw, 70px); line-height: 1.05; text-align: center; text-wrap: balance;
-  paint-order: stroke fill; -webkit-text-stroke: 10px var(--ink);
-}
-#full {
-  position: fixed; top: 31%; left: 16px; right: 16px; text-align: center;
-  font-family: var(--score); font-size: clamp(20px, 3.6vw, 30px); color: var(--gold);
-  paint-order: stroke fill; -webkit-text-stroke: 7px var(--ink);
-  pointer-events: none; animation: pulse 0.9s ease-in-out infinite alternate;
-}
-@keyframes pulse { to { transform: scale(1.06); } }
+#toast-title { font-size: clamp(32px, 6vw, 58px); font-weight: 700; line-height: 1.1; text-wrap: balance; -webkit-text-stroke: 9px var(--ink); }
+#toast-sub { font-size: 20px; -webkit-text-stroke: 5px var(--ink); }
 #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
-.pop {
-  position: absolute; font-family: var(--score); font-size: 24px; white-space: nowrap;
-  paint-order: stroke fill; -webkit-text-stroke: 6px var(--ink);
-  animation: rise 0.9s ease-out forwards;
-}
-.pop.cashpop { color: var(--cash); font-size: 34px; }
-.pop.info { color: var(--gold); }
+.pop { position: absolute; font-size: 24px; font-weight: 700; white-space: nowrap; animation: rise 0.9s ease-out forwards; }
+.pop.cashpop { color: var(--green); font-size: 34px; }
+.pop.info { color: var(--yellow); }
 @keyframes rise {
-  from { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  from { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
   to { transform: translate(-50%, calc(-50% - 64px)) scale(1); opacity: 0; }
 }
 .coin-fly {
   position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
-  display: grid; place-items: center; font-family: var(--score); font-size: 14px; color: var(--ink);
-  background: var(--cash); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25), 0 0 0 3px var(--ink);
+  display: grid; place-items: center; font-size: 14px; font-weight: 700;
+  background: var(--green); border: 3px solid var(--ink);
   transition: transform 0.65s cubic-bezier(0.55, -0.35, 0.7, 1), opacity 0.65s;
 }
-#flash { position: fixed; inset: 0; background: var(--paper); opacity: 0; pointer-events: none; }
+#flash { position: fixed; inset: 0; background: var(--text); opacity: 0; pointer-events: none; }
 #flash.go { animation: flash 0.55s ease-out; }
 @keyframes flash { from { opacity: 0.9; } to { opacity: 0; } }
 #fade { position: fixed; inset: 0; background: var(--ink); opacity: 0; pointer-events: none; transition: opacity 0.35s; }
 #fade.on { opacity: 1; pointer-events: auto; }
-#loading {
-  position: fixed; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center;
-  background: var(--ink); font-family: var(--display); font-size: clamp(26px, 5vw, 44px);
-}
-#loading small { font-family: var(--body); font-size: 16px; color: var(--dim); }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; background: var(--ink); font-size: 26px; font-weight: 700; }
 
 /* ---------- Panels ---------- */
 #panel {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  box-sizing: border-box; width: min(560px, calc(100% - 32px)); max-height: calc(100% - 170px);
-  overflow-y: auto; padding: 20px; display: grid; gap: 12px;
-  background: var(--panel); border-top: 6px solid var(--accent); box-shadow: 0 10px 0 var(--ink), 0 20px 50px rgb(0 0 0 / 0.4);
+  box-sizing: border-box; width: min(520px, calc(100% - 32px)); max-height: calc(100% - 60px);
+  overflow-y: auto; padding: 18px; display: grid; gap: 12px;
+  background: var(--panel); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 8px 0 var(--ink);
 }
-#panel h2 { margin: 0 56px 0 0; font-family: var(--display); font-weight: 400; font-size: 32px; line-height: 1.1; text-wrap: balance; }
-.kicker { margin: 0 0 -6px; font-family: var(--score); font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
-.note { margin: 0; font-size: 16px; line-height: 1.45; color: var(--dim); max-width: 60ch; }
-.note b { color: var(--paper); font-weight: 800; }
-.close { position: absolute; top: 14px; right: 16px; width: 44px; height: 40px; padding: 0; font-size: 18px; }
-.tabs { display: flex; gap: 10px; }
-.tab {
-  flex: 1; font-family: var(--score); font-size: 16px; padding: 8px; border: 0; cursor: pointer;
-  color: var(--dim); background: var(--panel-row); transform: skewX(-12deg);
-}
-.tab.on { color: var(--ink); background: var(--paper); }
-.row {
-  display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px;
-  padding: 8px 12px 8px 8px; background: var(--panel-row);
-}
-.row img, .card img { display: block; width: 100%; aspect-ratio: 1; max-width: 100%; }
-.row.mine { box-shadow: inset 4px 0 0 var(--cash); }
-.name { font-family: var(--score); font-size: 18px; line-height: 1.15; }
+#panel h2 { margin: 0 52px 0 0; font-size: 28px; font-weight: 700; line-height: 1.15; text-wrap: balance; }
+.note { margin: 0; font-size: 16px; line-height: 1.4; color: var(--dim); }
+.note b { color: var(--text); }
+.ok { color: var(--green); }
+.no { color: var(--red); }
+.close { position: absolute; top: 14px; right: 14px; width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; background: var(--row); border-radius: 12px; }
+.tab { padding: 8px; border: 0; border-radius: 9px; font-size: 16px; font-weight: 700; color: var(--dim); background: transparent; cursor: pointer; }
+.tab.on { color: var(--ink); background: var(--text); }
+.row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 10px; background: var(--row); border-radius: 12px; }
+.row img { display: block; width: 52px; height: 52px; border-radius: 8px; }
+.row.mine { outline: 3px solid var(--green); outline-offset: -3px; }
+.row .btn { font-size: 15px; padding: 6px 12px; white-space: nowrap; }
+.name { font-size: 17px; font-weight: 700; line-height: 1.2; }
 .sub { font-size: 14px; color: var(--dim); font-variant-numeric: tabular-nums; }
-.tag { font-family: var(--score); font-size: 15px; color: var(--cash); white-space: nowrap; }
+.tag { font-size: 15px; font-weight: 700; color: var(--green); white-space: nowrap; }
 .tag.dim { color: var(--dim); }
-.row .btn { font-size: 15px; padding: 7px 14px; white-space: nowrap; }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
-.card { position: relative; display: grid; gap: 2px; padding: 8px; background: var(--panel-row); text-align: center; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+.card { position: relative; display: grid; gap: 2px; padding: 8px; background: var(--row); border-radius: 12px; text-align: center; }
+.card img { display: block; width: 100%; aspect-ratio: 1; border-radius: 8px; }
+.card.equipped { outline: 3px solid var(--green); outline-offset: -3px; }
 .card .name { font-size: 15px; }
-.card .count { position: absolute; top: 6px; right: 8px; font-family: var(--score); font-size: 14px; }
-.card.equipped { box-shadow: inset 0 0 0 3px var(--cash); }
-.buttons { display: flex; gap: 12px; }
+.card .count { position: absolute; top: 6px; right: 9px; font-size: 14px; font-weight: 700; }
+.buttons { display: flex; gap: 10px; }
 .buttons .btn { flex: 1; }
-.reqs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.reqs li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; background: var(--panel-row); font-size: 16px; }
-.reqs .ok { color: var(--cash); }
-.reqs .no { color: var(--hot); }
-.compare { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; text-align: center; }
-.compare div { padding: 10px; background: var(--panel-row); }
-.compare b { display: block; font-family: var(--score); font-size: 28px; color: var(--gold); }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 15px; color: var(--dim); }
+kbd {
+  display: inline-block; min-width: 1.4em; margin-right: 6px; padding: 1px 7px; border-radius: 6px;
+  border-bottom: 2px solid var(--ink); background: var(--row); color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 700; text-align: center;
+}
 .r0 { color: var(--common); }
 .r1 { color: var(--uncommon); }
 .r2 { color: var(--rare); }
 .r3 { color: var(--epic); }
 .r4 { color: var(--legendary); }
 
-/* ---------- Egg hatching ---------- */
+/* ---------- Egg hatching (the 3D egg is drawn behind this by the game) ---------- */
 #hatch {
   position: fixed; inset: 0; display: grid; align-content: end; justify-items: center; gap: 6px; cursor: pointer;
   padding-bottom: calc(9vh + env(safe-area-inset-bottom, 0px));
 }
-body.hatching #hud-left, body.hatching #hud-right, body.hatching #help, body.hatching #bar, body.hatching #full, body.hatching #panel { visibility: hidden; }
-#hatch-info { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 36px; min-height: 90px; padding-inline: 16px; }
+#hatch-info { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 40px; padding-inline: 16px; }
 .reveal { display: grid; justify-items: center; gap: 2px; animation: pop-in 0.4s ease-out both; }
-.reveal .rarity { font-family: var(--score); font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase; }
-.reveal .pet-name { font-family: var(--display); font-size: clamp(22px, 3.4vw, 34px); paint-order: stroke fill; -webkit-text-stroke: 6px var(--ink); }
-.reveal .sub { color: var(--paper); }
+.pet-name { font-size: clamp(24px, 3.6vw, 36px); font-weight: 700; }
+.reveal .sub { color: var(--text); font-size: 16px; -webkit-text-stroke: 4px var(--ink); }
 #hatch-hint { font-size: 15px; color: var(--dim); }
 @keyframes pop-in { from { transform: scale(0.4); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  #full, .reveal { animation: none; }
+  .reveal { animation: none; }
   #toast, #fade { transition: none; }
   .pop { animation-name: fade; }
   @keyframes fade { from { transform: translate(-50%, -50%); opacity: 1; } to { transform: translate(-50%, -50%); opacity: 0; } }
@@ -242,34 +188,30 @@ body.hatching #hud-left, body.hatching #hud-right, body.hatching #help, body.hat
 <body>
 <canvas id="game"></canvas>
 
-<div id="hud-left">
-  <div class="chip cash"><span class="badge">$</span><span id="cash">0</span></div>
-  <div class="chip bag"><div id="bag-fill" class="fill"></div><span id="bag-text">0 / 20</span></div>
-  <div class="chip small"><span>Bag worth <b id="bag-worth">$0</b> · Cash boost <b id="boost">x1</b></span></div>
+<div id="hud" class="outlined">
+  <div id="money"><span class="coin">$</span><span id="cash">0</span></div>
+  <div id="bag"><div id="bag-fill"></div><span id="bag-text">0 / 20</span></div>
+  <p id="full" hidden>Bag full! Sell it at a CASH pad.</p>
 </div>
-<div id="hud-right">
-  <div class="chip place"><span id="place-world"></span><span id="place-zone"></span></div>
-  <button id="mute" class="icon-btn" type="button" aria-label="Turn sound off"></button>
+<div id="side">
+  <button id="pets" class="sq purple" type="button">Pets</button>
+  <button id="rebirth" class="sq yellow" type="button">Rebirth</button>
+  <button id="auto" class="sq gray" type="button">Auto<small>Off</small></button>
 </div>
+<button id="pause-btn" class="btn gray" type="button" aria-label="Pause">
+  <svg width="20" height="22" viewBox="0 0 20 22" fill="currentColor" aria-hidden="true"><rect x="2" y="1" width="6" height="20" rx="2"/><rect x="12" y="1" width="6" height="20" rx="2"/></svg>
+</button>
 
-<p id="help">WASD to move · Space to jump · Click to swing · Drag to look around · Scroll to zoom</p>
-<div id="bar">
-  <button id="auto" class="btn off" type="button">Auto Swing: Off</button>
-  <button id="pets" class="btn" type="button">Pets</button>
-  <button id="rebirth" class="btn gold" type="button">Rebirth</button>
-</div>
-
-<div id="toast"><div id="toast-kicker"></div><div id="toast-title"></div></div>
-<div id="full" hidden>Bag full! Sell it on a green CASH pad.</div>
-<div id="fx"></div>
+<div id="toast" class="outlined"><div id="toast-title"></div><div id="toast-sub"></div></div>
+<div id="fx" class="outlined"></div>
 <div id="panel" hidden></div>
-<div id="hatch" hidden>
+<div id="hatch" class="outlined" hidden>
   <div id="hatch-info"></div>
   <div id="hatch-hint" hidden>Click to continue</div>
 </div>
 <div id="flash"></div>
 <div id="fade"></div>
-<div id="loading">Warming up the stadium<small>Building players, pets and worlds</small></div>
+<div id="loading">Loading…</div>
 
 <script type="importmap">
 {
@@ -430,16 +372,60 @@ const SAVE_KEY = "sports-legends-save-v1";
 function defaultState() {
   return { cash: 0, bagCount: 0, bagValue: 0, gear: 0, bag: 0, zones: 1, world: 0, rebirths: 0, pets: {}, auto: false, muted: false, champion: false };
 }
-function loadState() {
-  let raw = null;
-  try { raw = localStorage.getItem(SAVE_KEY); } catch { /* storage blocked: start fresh */ }
-  return raw ? { ...defaultState(), ...JSON.parse(raw) } : defaultState();
-}
-function saveState() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch { /* storage blocked: progress lasts this visit only */ }
-}
-const state = loadState();
+const state = defaultState();
 let dirty = false;
+
+// Inside the Claude artifact viewer, progress lives in the player's own private cloud
+// document, so it survives cleared browser data and follows them to other computers.
+// Any other copy of the page (GitHub Pages, a downloaded file) keeps it in browser storage.
+let saveStore = { kind: "browser" };
+let saving = false;
+let lastSaved = 0;
+let saveError = "";
+
+async function openSaveStore() {
+  if (!window.claude) return { kind: "browser" };
+  const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+  const id = user ? await user.id() : null;
+  return db && id ? { kind: "cloud", ref: db.doc(`data/users/${id}/save`) } : { kind: "browser" };
+}
+function readBrowserSave() {
+  let raw = null;
+  try { raw = localStorage.getItem(SAVE_KEY); } catch { saveError = "This browser is blocking saves, so progress will be lost when you leave."; }
+  return raw ? JSON.parse(raw) : null;
+}
+// A first cloud load with nothing saved yet picks up any progress already kept in this browser.
+async function loadProgress() {
+  if (saveStore.kind === "cloud") {
+    const snap = await saveStore.ref.get();
+    if (snap.exists) return structuredClone(snap.data());
+  }
+  return readBrowserSave() ?? {};
+}
+async function saveProgress() {
+  if (saving || !dirty) return;
+  saving = true;
+  dirty = false;
+  const data = structuredClone(state);
+  try {
+    if (saveStore.kind === "cloud") await saveStore.ref.set(data);
+    else localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    lastSaved = Date.now();
+    saveError = "";
+  } catch (e) {
+    dirty = true;
+    if (saveStore.kind === "cloud" && e.code === "invalid_argument") {
+      // A viewer who may not write to this artifact (for example someone on a view-only share) saves in their browser.
+      saveStore = { kind: "browser" };
+    } else {
+      saveError = saveStore.kind === "cloud" ? "Couldn't reach your Claude account. Trying again soon." : "This browser is blocking saves, so progress will be lost when you leave.";
+      console.error("Save failed", e);
+    }
+  } finally {
+    saving = false;
+  }
+  if (panelKind === "pause") renderPanel();
+}
 
 const capacity = () => bagCapacity(state.bag);
 function equippedPets() {
@@ -703,12 +689,13 @@ function finishMat(finish) {
 
 const GEO = {
   sphere: new THREE.SphereGeometry(1, 20, 14),
-  sphereSmall: new THREE.SphereGeometry(1, 10, 8),
   ball: new THREE.SphereGeometry(1, 16, 12),
   cone: new THREE.ConeGeometry(1, 1, 18),
   cyl: new THREE.CylinderGeometry(1, 1, 1, 24),
   box: new THREE.BoxGeometry(1, 1, 1),
   torus: new THREE.TorusGeometry(1, 0.1, 10, 32),
+  rbox: new RoundedBoxGeometry(1, 1, 1, 2, 0.12),
+  pyramid: new THREE.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4),
   football: new THREE.SphereGeometry(1, 16, 12).rotateZ(Math.PI / 2).scale(1, 0.62, 0.62),
   puck: new THREE.CylinderGeometry(1, 1, 0.42, 32),
 };
@@ -947,108 +934,107 @@ function bagModel(tier) {
 
 function petModel(pet) {
   const g = new THREE.Group();
-  const body = std(pet.body, { roughness: 0.55 });
-  const belly = std(pet.belly, { roughness: 0.6 });
+  const body = std(pet.body, { roughness: 0.5 });
+  const belly = std(pet.belly, { roughness: 0.55 });
   const dark = std(0x1f2937, { roughness: 0.35 });
   const white = std(0xffffff, { roughness: 0.25 });
   const pink = std(0xf9a8d4, { roughness: 0.5 });
-  const orange = std(0xf59e0b, { roughness: 0.5 });
+  const orange = std(0xf59e0b, { roughness: 0.45 });
   const accent = std(WORLDS[pet.world].accent, { roughness: 0.4 });
-  const S = GEO.sphere;
-  const C = GEO.cone;
+  const R = GEO.rbox;
+  const B = GEO.box;
+  const P = GEO.pyramid;
   const sp = pet.species;
-  const headY = sp === "penguin" || sp === "owl" ? 0.95 : 1.0;
   const limbs = sp === "panda" ? dark : body;
+  const H = 0.95;     // head center height
+  const F = 0.385;    // front face of the head
 
-  part(g, S, body, [0, 0.45, 0], [0.42, 0.42, 0.4]);
-  part(g, S, belly, [0, 0.43, 0.15], sp === "penguin" ? [0.33, 0.38, 0.3] : [0.3, 0.3, 0.27]);
-  part(g, S, body, [0, headY, 0.04], [0.38, 0.35, 0.35]);
-  const eye = sp === "owl" ? 1.35 : 1;
+  part(g, R, body, [0, 0.38, 0], [0.7, 0.55, 0.6]);
+  part(g, B, belly, [0, 0.36, 0.301], sp === "penguin" ? [0.5, 0.48, 0.02] : [0.42, 0.34, 0.02]);
+  part(g, R, body, [0, H, 0.04], [0.78, 0.66, 0.68]);
+  part(g, B, accent, [0, H + 0.17, 0.04], [0.82, 0.09, 0.72]);
+  if (sp === "owl") part(g, B, belly, [0, H + 0.02, F], [0.6, 0.44, 0.02]);
   for (const side of [-1, 1]) {
-    if (sp === "panda") part(g, S, dark, [side * 0.14, headY + 0.03, 0.31], [0.11, 0.13, 0.06], [0, 0, side * 0.4]);
-    if (sp === "owl") part(g, S, belly, [side * 0.14, headY + 0.03, 0.27], [0.15, 0.16, 0.1]);
-    part(g, GEO.sphereSmall, white, [side * 0.14, headY + 0.05, 0.33], [0.085 * eye, 0.1 * eye, 0.05]);
-    part(g, GEO.sphereSmall, dark, [side * 0.14, headY + 0.04, 0.37], [0.05 * eye, 0.065 * eye, 0.03]);
-    part(g, GEO.sphereSmall, white, [side * 0.12, headY + 0.08, 0.395], 0.018);
-    part(g, S, sp === "penguin" ? orange : limbs, [side * 0.2, 0.07, 0.12], [0.13, 0.08, 0.17]);
-    part(g, S, limbs, [side * 0.38, 0.5, 0.05], [0.1, 0.2, 0.1], [0, 0, side * 0.5]);
-  }
-  for (const side of [-1, 1]) {
+    const e = sp === "owl" ? 1.35 : 1;
+    if (sp === "panda") {
+      part(g, B, dark, [side * 0.17, H + 0.02, F], [0.21, 0.25, 0.02]);
+      part(g, B, white, [side * 0.17, H + 0.02, F + 0.006], [0.13, 0.17, 0.02]);
+    }
+    part(g, B, dark, [side * 0.16, H + 0.03, F + 0.012], [0.11 * e, 0.15 * e, 0.02]);
+    part(g, B, white, [side * 0.135, H + 0.07, F + 0.024], [0.04 * e, 0.04 * e, 0.01]);
+    for (const z of [0.16, -0.16]) part(g, R, sp === "penguin" ? orange : limbs, [side * 0.2, 0.07, z], [0.2, 0.14, 0.24]);
+    part(g, R, limbs, [side * 0.39, 0.42, 0.06], [0.14, 0.28, 0.18], [0, 0, side * 0.25]);
     switch (sp) {
       case "dog":
-        part(g, S, dark, [side * 0.33, headY, 0], [0.09, 0.21, 0.13], [0, 0, side * 0.35]);
+        part(g, R, dark, [side * 0.43, H - 0.02, 0.02], [0.1, 0.36, 0.28]);
         break;
       case "cat":
-        part(g, C, body, [side * 0.2, headY + 0.33, 0], [0.12, 0.22, 0.1], [0, 0, side * -0.25]);
-        part(g, C, pink, [side * 0.2, headY + 0.31, 0.04], [0.06, 0.13, 0.04], [0, 0, side * -0.25]);
+        part(g, P, body, [side * 0.24, 1.37, 0.02], [0.14, 0.2, 0.12]);
+        part(g, P, pink, [side * 0.24, 1.35, 0.06], [0.07, 0.12, 0.04]);
         break;
       case "bunny":
-        part(g, S, body, [side * 0.12, headY + 0.47, -0.02], [0.08, 0.3, 0.06], [0, 0, side * -0.12]);
-        part(g, S, pink, [side * 0.12, headY + 0.47, 0.03], [0.045, 0.22, 0.03], [0, 0, side * -0.12]);
+        part(g, R, body, [side * 0.15, 1.5, 0], [0.13, 0.46, 0.09]);
+        part(g, B, pink, [side * 0.15, 1.48, 0.047], [0.06, 0.32, 0.01]);
         break;
       case "fox":
-        part(g, C, body, [side * 0.21, headY + 0.36, 0], [0.15, 0.3, 0.1], [0, 0, side * -0.3]);
-        part(g, C, dark, [side * 0.26, headY + 0.48, 0], [0.06, 0.1, 0.05], [0, 0, side * -0.3]);
+        part(g, P, body, [side * 0.24, 1.42, 0.02], [0.17, 0.3, 0.12]);
+        part(g, P, dark, [side * 0.24, 1.52, 0.02], [0.07, 0.11, 0.05]);
         break;
       case "bear":
       case "panda":
-        part(g, S, limbs, [side * 0.27, headY + 0.27, 0], 0.11);
+        part(g, R, limbs, [side * 0.3, 1.32, 0], [0.18, 0.16, 0.12]);
         break;
       case "owl":
-        part(g, C, body, [side * 0.22, headY + 0.32, 0], [0.07, 0.16, 0.07], [0, 0, side * -0.4]);
+        part(g, P, body, [side * 0.28, 1.36, 0], [0.09, 0.18, 0.08]);
         break;
       case "dragon":
-        part(g, C, std(0xfef3c7, { roughness: 0.4 }), [side * 0.17, headY + 0.35, -0.05], [0.06, 0.24, 0.06], [-0.3, 0, side * -0.2]);
-        part(g, S, belly, [side * 0.4, 0.85, -0.25], [0.05, 0.32, 0.34], [0.3, side * 0.5, side * 0.3]);
+        part(g, P, std(0xfef3c7, { roughness: 0.4 }), [side * 0.2, 1.4, -0.06], [0.08, 0.26, 0.08], [-0.25, 0, side * -0.15]);
+        part(g, R, belly, [side * 0.42, 0.72, -0.24], [0.05, 0.42, 0.42], [0.2, side * 0.5, side * 0.35]);
         break;
     }
   }
   switch (sp) {
     case "dog":
-      part(g, S, belly, [0, headY - 0.08, 0.3], [0.16, 0.12, 0.14]);
-      part(g, S, dark, [0, headY - 0.03, 0.43], [0.06, 0.045, 0.04]);
-      part(g, S, body, [0, 0.58, -0.4], [0.07, 0.07, 0.2], [-0.8, 0, 0]);
+      part(g, R, belly, [0, H - 0.1, 0.44], [0.32, 0.22, 0.16]);
+      part(g, B, dark, [0, H - 0.04, 0.525], [0.13, 0.08, 0.03]);
+      part(g, R, body, [0, 0.55, -0.38], [0.09, 0.09, 0.3], [-0.6, 0, 0]);
       break;
     case "cat":
-      part(g, S, pink, [0, headY - 0.04, 0.39], [0.04, 0.03, 0.03]);
-      part(g, GEO.cyl, body, [0, 0.72, -0.43], [0.05, 0.62, 0.05], [-0.45, 0, 0]);
+      part(g, B, pink, [0, H - 0.06, F + 0.01], [0.07, 0.05, 0.02]);
+      part(g, R, body, [0, 0.72, -0.36], [0.09, 0.62, 0.09], [-0.35, 0, 0]);
       break;
     case "bunny":
-      part(g, S, pink, [0, headY - 0.03, 0.39], [0.04, 0.03, 0.03]);
-      part(g, S, white, [0, 0.38, -0.4], 0.13);
+      part(g, B, pink, [0, H - 0.06, F + 0.01], [0.07, 0.05, 0.02]);
+      part(g, R, white, [0, 0.4, -0.33], [0.2, 0.2, 0.18]);
       break;
     case "fox":
-      part(g, C, belly, [0, headY - 0.07, 0.36], [0.13, 0.24, 0.12], [Math.PI / 2, 0, 0]);
-      part(g, S, dark, [0, headY - 0.07, 0.48], 0.04);
-      part(g, S, body, [0, 0.62, -0.5], [0.16, 0.16, 0.34], [-0.6, 0, 0]);
-      part(g, S, white, [0, 0.82, -0.74], 0.11);
+      part(g, R, belly, [0, H - 0.1, 0.45], [0.28, 0.18, 0.2]);
+      part(g, B, dark, [0, H - 0.05, 0.555], [0.09, 0.07, 0.03]);
+      part(g, R, body, [0, 0.55, -0.46], [0.22, 0.22, 0.5], [-0.45, 0, 0]);
+      part(g, R, white, [0, 0.74, -0.68], [0.2, 0.2, 0.14], [-0.45, 0, 0]);
       break;
     case "bear":
     case "panda":
-      part(g, S, sp === "panda" ? white : belly, [0, headY - 0.09, 0.3], [0.15, 0.11, 0.1]);
-      part(g, S, dark, [0, headY - 0.05, 0.39], [0.05, 0.035, 0.03]);
+      part(g, R, sp === "panda" ? white : belly, [0, H - 0.11, 0.43], [0.3, 0.2, 0.12]);
+      part(g, B, dark, [0, H - 0.06, 0.495], [0.11, 0.07, 0.03]);
       break;
     case "penguin":
-      part(g, C, orange, [0, headY - 0.06, 0.4], [0.07, 0.15, 0.07], [Math.PI / 2, 0, 0]);
+      part(g, P, orange, [0, H - 0.08, 0.47], [0.1, 0.18, 0.08], [Math.PI / 2, 0, 0]);
       break;
     case "owl":
-      part(g, C, orange, [0, headY - 0.08, 0.37], [0.05, 0.12, 0.05], [Math.PI / 2 + 0.5, 0, 0]);
+      part(g, P, orange, [0, H - 0.1, 0.44], [0.07, 0.14, 0.06], [Math.PI / 2 + 0.4, 0, 0]);
       break;
     case "dragon":
-      part(g, S, body, [0, headY - 0.08, 0.3], [0.17, 0.13, 0.15]);
-      for (const side of [-1, 1]) part(g, GEO.sphereSmall, dark, [side * 0.06, headY - 0.04, 0.44], 0.025);
-      for (let i = 0; i < 3; i++) part(g, C, belly, [0, 0.82 - i * 0.18, -0.3 - i * 0.07], [0.06, 0.14, 0.06], [-0.5, 0, 0]);
-      part(g, C, body, [0, 0.32, -0.6], [0.12, 0.45, 0.12], [-Math.PI / 2 + 0.3, 0, 0]);
+      part(g, R, body, [0, H - 0.1, 0.45], [0.34, 0.22, 0.2]);
+      for (const side of [-1, 1]) part(g, B, dark, [side * 0.07, H - 0.05, 0.555], [0.05, 0.04, 0.02]);
+      for (let i = 0; i < 3; i++) part(g, P, belly, [0, 0.72 - i * 0.18, -0.3 - i * 0.04], [0.08, 0.16, 0.08], [-0.4, 0, 0]);
+      part(g, R, body, [0, 0.3, -0.5], [0.2, 0.2, 0.5], [0.25, 0, 0]);
       break;
   }
-  part(g, GEO.torus, accent, [0, headY + 0.13, 0.04], [0.37, 0.37, 0.4], [Math.PI / 2, 0, 0]);
   if (pet.rarity === 4) {
     const gold = std(0xfbbf24, { metalness: 1, roughness: 0.2, emissive: 0xb45309, emissiveIntensity: 0.4 });
-    part(g, GEO.cyl, gold, [0, headY + 0.42, 0.02], [0.17, 0.1, 0.17]);
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      part(g, C, gold, [Math.sin(a) * 0.15, headY + 0.53, 0.02 + Math.cos(a) * 0.15], [0.05, 0.13, 0.05]);
-    }
+    part(g, B, gold, [0, 1.35, 0.04], [0.4, 0.12, 0.4]);
+    for (const [x, z] of [[-0.16, -0.12], [0.16, -0.12], [-0.16, 0.2], [0.16, 0.2]]) part(g, P, gold, [x, 1.47, z], [0.07, 0.14, 0.07]);
   }
   return mergeByMaterial(g);
 }
@@ -1117,8 +1103,8 @@ function signTexture(lines, { width = 1024, height = 256, accent = 0x3b82f6 } = 
     g.textBaseline = "top";
     for (const line of lines) {
       let size = line.size;
-      g.font = `${size}px ${line.font ?? '"Russo One", sans-serif'}`;
-      while (g.measureText(line.text).width > w - 60) { size -= 4; g.font = `${size}px ${line.font ?? '"Russo One", sans-serif'}`; }
+      g.font = `700 ${size}px "Fredoka", sans-serif`;
+      while (g.measureText(line.text).width > w - 60) { size -= 4; g.font = `700 ${size}px "Fredoka", sans-serif`; }
       g.fillStyle = line.color ?? "#ffffff";
       g.fillText(line.text, w / 2, y + (line.size - size) / 2);
       y += line.size * 1.15;
@@ -1128,7 +1114,7 @@ function signTexture(lines, { width = 1024, height = 256, accent = 0x3b82f6 } = 
 function floatingLabel(text, color, width) {
   const tex = canvasTexture(512, 128, (g, w, h) => {
     let size = 78;
-    do { size -= 4; g.font = `${size}px "Russo One", sans-serif`; } while (g.measureText(text).width > w - 40);
+    do { size -= 4; g.font = `700 ${size}px "Fredoka", sans-serif`; } while (g.measureText(text).width > w - 40);
     g.textAlign = "center";
     g.textBaseline = "middle";
     g.lineJoin = "round";
@@ -1150,62 +1136,60 @@ function makePlayer() {
   const shorts = std(0xf8fafc, { roughness: 0.6 });
   const sock = std(0xf8fafc, { roughness: 0.7 });
   const shoe = std(0x111827, { roughness: 0.4 });
-  const sole = std(0xf8fafc, { roughness: 0.5 });
   const dark = std(0x1f2937, { roughness: 0.4 });
   const white = std(0xffffff, { roughness: 0.25 });
 
+  const block = (w, h, d, r = 0.07) => new RoundedBoxGeometry(w, h, d, 2, r);
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
   const hips = new THREE.Group();
   hips.position.y = 1.0;
   body.add(hips);
-  part(hips, new RoundedBoxGeometry(0.84, 0.4, 0.52, 3, 0.12), shorts, [0, 0, 0]);
+  part(hips, block(0.92, 0.34, 0.5), shorts, [0, 0, 0]);
 
   const torso = new THREE.Group();
   torso.position.y = 0.14;
   hips.add(torso);
-  part(torso, new RoundedBoxGeometry(0.92, 0.96, 0.52, 4, 0.18), kitMat, [0, 0.5, 0]);
+  part(torso, block(1.0, 0.98, 0.5), kitMat, [0, 0.5, 0]);
   const number = new THREE.Mesh(
     new THREE.PlaneGeometry(0.5, 0.5),
     new THREE.MeshStandardMaterial({ map: canvasTexture(128, 128, (g, w, h) => {
-      g.font = '100px "Russo One", sans-serif';
+      g.font = '700 100px "Fredoka", sans-serif';
       g.textAlign = "center";
       g.textBaseline = "middle";
       g.fillStyle = "#ffffff";
       g.fillText("7", w / 2, h / 2 + 6);
     }), transparent: true, roughness: 0.6 }),
   );
-  number.position.set(0, 0.58, -0.265);
+  number.position.set(0, 0.58, -0.255);
   number.rotation.y = Math.PI;
   torso.add(number);
 
+  // Block head with a flat painted-on face and a cap.
   const neck = new THREE.Group();
   neck.position.y = 1.0;
   torso.add(neck);
-  part(neck, GEO.sphere, skin, [0, 0.42, 0], 0.42);
+  part(neck, block(0.84, 0.82, 0.82, 0.14), skin, [0, 0.43, 0]);
   for (const side of [-1, 1]) {
-    part(neck, GEO.sphereSmall, white, [side * 0.14, 0.47, 0.35], [0.075, 0.09, 0.05]);
-    part(neck, GEO.sphereSmall, dark, [side * 0.14, 0.465, 0.39], [0.045, 0.055, 0.03]);
-    part(neck, GEO.box, dark, [side * 0.14, 0.59, 0.37], [0.13, 0.03, 0.03], [0, 0, side * -0.12]);
-    part(neck, GEO.sphereSmall, skin, [side * 0.42, 0.42, 0], [0.07, 0.1, 0.06]);
+    part(neck, GEO.box, dark, [side * 0.17, 0.48, 0.415], [0.11, 0.17, 0.02]);
+    part(neck, GEO.box, white, [side * 0.15, 0.53, 0.426], [0.04, 0.05, 0.01]);
+    part(neck, GEO.box, dark, [side * 0.13, 0.325, 0.415], [0.09, 0.05, 0.02], [0, 0, side * 0.5]);
   }
-  part(neck, new THREE.TorusGeometry(0.09, 0.018, 6, 16, Math.PI), dark, [0, 0.34, 0.405], 1, [0, 0, Math.PI]);
-  part(neck, new THREE.SphereGeometry(0.455, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), capMat, [0, 0.48, 0], [1, 0.85, 1]);
-  part(neck, new THREE.CylinderGeometry(0.3, 0.3, 0.035, 24), capMat, [0, 0.53, 0.36], [1, 1, 0.8], [0.12, 0, 0]);
+  part(neck, GEO.box, dark, [0, 0.3, 0.415], [0.16, 0.05, 0.02]);
+  part(neck, block(0.9, 0.24, 0.9, 0.08), capMat, [0, 0.86, 0]);
+  part(neck, GEO.box, capMat, [0, 0.78, 0.56], [0.86, 0.05, 0.36]);
 
   function arm(side) {
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * 0.6, 0.86, 0);
+    shoulder.position.set(side * 0.72, 0.86, 0);
     torso.add(shoulder);
-    part(shoulder, new THREE.CapsuleGeometry(0.15, 0.12, 4, 12), kitMat, [0, -0.08, 0]);
-    part(shoulder, new THREE.CapsuleGeometry(0.115, 0.24, 4, 12), skin, [0, -0.24, 0]);
+    part(shoulder, block(0.42, 0.44, 0.44), kitMat, [0, -0.16, 0]);
     const elbow = new THREE.Group();
     elbow.position.y = -0.44;
     shoulder.add(elbow);
-    part(elbow, new THREE.CapsuleGeometry(0.105, 0.22, 4, 12), skin, [0, -0.17, 0]);
-    part(elbow, GEO.cyl, capMat, [0, -0.31, 0], [0.12, 0.08, 0.12]);
-    part(elbow, GEO.sphereSmall, skin, [0, -0.42, 0], 0.12);
+    part(elbow, block(0.36, 0.5, 0.38), skin, [0, -0.2, 0]);
+    part(elbow, GEO.box, capMat, [0, -0.3, 0], [0.38, 0.08, 0.4]);
     const hand = new THREE.Group();
     hand.position.y = -0.42;
     elbow.add(hand);
@@ -1213,16 +1197,16 @@ function makePlayer() {
   }
   function leg(side) {
     const hip = new THREE.Group();
-    hip.position.set(side * 0.22, -0.06, 0);
+    hip.position.set(side * 0.23, -0.06, 0);
     hips.add(hip);
-    part(hip, new THREE.CapsuleGeometry(0.15, 0.26, 4, 12), skin, [0, -0.24, 0]);
+    part(hip, block(0.42, 0.5, 0.44), skin, [0, -0.22, 0]);
+    part(hip, block(0.44, 0.2, 0.46), shorts, [0, -0.02, 0]);
     const knee = new THREE.Group();
     knee.position.y = -0.46;
     hip.add(knee);
-    part(knee, new THREE.CapsuleGeometry(0.135, 0.24, 4, 12), sock, [0, -0.2, 0]);
-    part(knee, GEO.cyl, kitMat, [0, -0.06, 0], [0.145, 0.07, 0.145]);
-    part(knee, new RoundedBoxGeometry(0.27, 0.15, 0.44, 2, 0.06), shoe, [0, -0.41, 0.06]);
-    part(knee, GEO.box, sole, [0, -0.475, 0.06], [0.26, 0.04, 0.42]);
+    part(knee, block(0.4, 0.38, 0.42), sock, [0, -0.17, 0]);
+    part(knee, GEO.box, kitMat, [0, -0.05, 0], [0.42, 0.07, 0.44]);
+    part(knee, block(0.44, 0.16, 0.58, 0.05), shoe, [0, -0.41, 0.07]);
     return { hip, knee };
   }
   const armL = arm(-1);
@@ -1382,7 +1366,7 @@ function fieldTexture(def, rand) {
         g.fillRect(X(-HALF + 1.5), Y(ZONE_START[0]), U(FIELD_W - 3), U(BACK_Z - ZONE_START[0] - 1.5));
         g.save();
         g.translate(X(0), Y((BACK_Z + ZONE_START[0]) / 2));
-        g.font = `${U(5)}px "Graduate", serif`;
+        g.font = `700 ${U(5)}px "Fredoka", sans-serif`;
         g.textAlign = "center";
         g.textBaseline = "middle";
         g.fillStyle = "rgba(255,255,255,0.9)";
@@ -1390,7 +1374,7 @@ function fieldTexture(def, rand) {
         g.restore();
         stroke(0.25);
         g.strokeRect(X(-HALF + 1.5), Y(END_Z + 1.5), U(FIELD_W - 3), U(FIELD_L - 3));
-        g.font = `${U(3)}px "Russo One", sans-serif`;
+        g.font = `700 ${U(3)}px "Fredoka", sans-serif`;
         g.textAlign = "center";
         g.textBaseline = "middle";
         g.fillStyle = "rgba(255,255,255,0.9)";
@@ -1463,7 +1447,7 @@ function adTexture(def) {
   const tex = canvasTexture(1024, 64, (g, w, h) => {
     g.fillStyle = hex(def.accent);
     g.fillRect(0, 0, w, h);
-    g.font = '40px "Russo One", sans-serif';
+    g.font = '700 40px "Fredoka", sans-serif';
     g.textBaseline = "middle";
     g.fillStyle = "#ffffff";
     g.fillText(`SPORTS LEGENDS  ★  ${def.name.toUpperCase()}  ★`, 16, h / 2 + 2);
@@ -1592,8 +1576,8 @@ function buildCrowd(root, def, rand) {
     }
     part(root, GEO.box, flat(0x4b5563), [side * (HALF + 3.4 + steps * 2.2 + 0.5), 5.5, (BACK_Z + END_Z) / 2], [1, 11, FIELD_L + 4]).castShadow = false;
   }
-  const bodies = own(new THREE.InstancedMesh(own(new THREE.CylinderGeometry(0.26, 0.32, 0.95, 6)), flat(0xffffff), fans.length));
-  const heads = own(new THREE.InstancedMesh(own(new THREE.SphereGeometry(1, 6, 4)), flat(0xffffff), fans.length));
+  const bodies = own(new THREE.InstancedMesh(own(new THREE.BoxGeometry(0.55, 0.9, 0.4)), flat(0xffffff), fans.length));
+  const heads = own(new THREE.InstancedMesh(GEO.box, flat(0xffffff), fans.length));
   const color = new THREE.Color();
   fans.forEach((fan, i) => {
     bodies.setColorAt(i, color.set(fan.shirt));
@@ -1616,7 +1600,7 @@ function updateCrowd(crowd, time, hype) {
     dummy.updateMatrix();
     bodies.setMatrixAt(i, dummy.matrix);
     dummy.position.y += 0.62;
-    dummy.scale.setScalar(0.24);
+    dummy.scale.setScalar(0.4);
     dummy.updateMatrix();
     heads.setMatrixAt(i, dummy.matrix);
   });
@@ -1671,7 +1655,6 @@ function buildWorld(w) {
   const rand = mulberry32(1000 + w);
   const root = new THREE.Group();
   scene.add(root);
-  document.documentElement.style.setProperty("--accent", hex(def.accent));
   sky.material.uniforms.top.value.set(def.skyTop);
   sky.material.uniforms.low.value.set(def.skyLow);
   scene.fog.color.set(def.skyLow);
@@ -1705,7 +1688,7 @@ function buildWorld(w) {
   }
   const board = signBoard([
     { text: "SPORTS LEGENDS", size: 70, color: hex(def.accent) },
-    { text: def.name.toUpperCase(), size: 130, font: '"Graduate", serif' },
+    { text: def.name.toUpperCase(), size: 130 },
     { text: `WORLD ${w + 1} OF ${WORLDS.length}`, size: 60, color: "#fbbf24" },
   ], 34, 13, def.accent);
   board.position.set(0, 20, END_Z - 18);
@@ -1857,9 +1840,14 @@ const keys = new Set();
 const GAME_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
 addEventListener("keydown", e => {
   sound.unlock();
+  if (e.code === "Escape") {
+    e.preventDefault();
+    handleEscape();
+    return;
+  }
   if (!GAME_KEYS.has(e.code)) return;
   e.preventDefault();
-  keys.add(e.code);
+  if (!paused) keys.add(e.code);
 });
 addEventListener("keyup", e => keys.delete(e.code));
 addEventListener("blur", () => keys.clear());
@@ -2186,7 +2174,7 @@ function renderThumb(object, tilt = 0.5) {
 }
 function buildThumbnails() {
   renderer.setSize(160, 160, false);
-  renderer.setClearColor(0x1a2a52);
+  renderer.setClearColor(0x2b335c);
   GEAR.forEach(gear => {
     const model = gearModel(gear);
     model.rotation.z = -0.7;
@@ -2249,9 +2237,8 @@ function updateHatch(dt) {
     }
     $("hatch-info").innerHTML = h.items.map(it => `
       <div class="reveal">
-        <span class="rarity r${it.pet.rarity}">${RARITIES[it.pet.rarity].name}</span>
         <span class="pet-name r${it.pet.rarity}">${it.pet.name}</span>
-        <span class="sub">${pct(it.pet.bonus)} cash</span>
+        <span class="sub">${RARITIES[it.pet.rarity].name}, ${pct(it.pet.bonus)} cash</span>
       </div>`).join("");
   }
   if (h.cracked && t > CRACK_T + 0.8) $("hatch-hint").hidden = false;
@@ -2312,6 +2299,7 @@ let shake = 0;
 
 canvas.addEventListener("pointerdown", e => {
   sound.unlock();
+  if (paused) return;
   drag = { x: e.clientX, y: e.clientY, moved: false };
   canvas.setPointerCapture(e.pointerId);
 });
@@ -2333,6 +2321,7 @@ canvas.addEventListener("pointerup", () => {
 canvas.addEventListener("pointercancel", () => { drag = null; });
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
+  if (paused) return;
   cam.dist = clamp(cam.dist + e.deltaY * 0.02, 7, 34);
 }, { passive: false });
 
@@ -2368,17 +2357,14 @@ const RARITY_HEX = [0xcbd5e1, 0x4ade80, 0x38bdf8, 0xc084fc, 0xfbbf24];
 let shownCash = state.cash;
 
 function refreshHud() {
-  $("bag-text").textContent = `${fmt(state.bagCount)} / ${fmt(capacity())} ${world.def.icon}`;
+  const full = state.bagCount >= capacity();
+  $("bag-text").textContent = `${fmt(state.bagCount)} / ${fmt(capacity())}`;
   $("bag-fill").style.width = `${(100 * state.bagCount) / capacity()}%`;
-  $("bag-worth").textContent = money(state.bagValue);
-  $("boost").textContent = boostText(cashBoost());
-  $("full").hidden = state.bagCount < capacity();
-  $("auto").textContent = `Auto Swing: ${state.auto ? "On" : "Off"}`;
-  $("auto").classList.toggle("off", !state.auto);
-  $("pets").textContent = `Pets ${boostText(petBoost())}`;
-  $("rebirth").textContent = state.rebirths ? `Rebirth (${state.rebirths})` : "Rebirth";
-  $("place-world").textContent = `${world.def.icon} ${world.def.name}`;
-  $("place-zone").textContent = `Zone ${currentZone + 1}: ${world.def.zones[currentZone]}`;
+  $("bag").classList.toggle("full", full);
+  $("full").hidden = !full;
+  $("auto").innerHTML = `Auto<small>${state.auto ? "On" : "Off"}</small>`;
+  $("auto").classList.toggle("green", state.auto);
+  $("auto").classList.toggle("gray", !state.auto);
   renderPanel();
   dirty = true;
 }
@@ -2421,15 +2407,15 @@ function flyCoins(p) {
     el.addEventListener("transitionend", () => el.remove(), { once: true });
   }
   setTimeout(() => {
-    $("cash").classList.remove("bump");
-    void $("cash").offsetWidth;
-    $("cash").classList.add("bump");
+    $("money").classList.remove("bump");
+    void $("money").offsetWidth;
+    $("money").classList.add("bump");
   }, 700);
 }
 let toastTimer;
-function toast(kicker, title) {
-  $("toast-kicker").textContent = kicker;
+function toast(title, sub = "") {
   $("toast-title").textContent = title;
+  $("toast-sub").textContent = sub;
   $("toast").classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $("toast").classList.remove("show"), 2400);
@@ -2443,17 +2429,7 @@ function confetti(x, y, z, count = 60) {
   particles.burst(new THREE.Vector3(x, y, z), { count, colors: [0xef4444, 0xfbbf24, 0x22c55e, 0x3b82f6, 0xa855f7, 0xffffff], speed: 9, up: 10, gravity: 9, life: 2, size: 0.25 });
 }
 
-const SPEAKER_ON = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
-const SPEAKER_OFF = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
-function refreshMute() {
-  $("mute").innerHTML = state.muted ? SPEAKER_OFF : SPEAKER_ON;
-  $("mute").setAttribute("aria-label", state.muted ? "Turn sound on" : "Turn sound off");
-}
-$("mute").addEventListener("click", () => {
-  state.muted = !state.muted;
-  refreshMute();
-  dirty = true;
-});
+$("pause-btn").addEventListener("click", () => openPause());
 $("auto").addEventListener("click", () => {
   state.auto = !state.auto;
   sound.play("click");
@@ -2472,7 +2448,7 @@ let panelHtml = "";
 let shopTab = "gear";
 
 const buyButton = (action, arg, cost, label = money(cost), extra = "") =>
-  `<button class="btn go ${extra}" type="button" data-action="${action}" data-arg="${arg}"${state.cash < cost ? " disabled" : ""}>${label}</button>`;
+  `<button class="btn green ${extra}" type="button" data-action="${action}" data-arg="${arg}"${state.cash < cost ? " disabled" : ""}>${label}</button>`;
 
 function shopRow(thumb, name, sub, tier, current, cost, action) {
   const status = tier === current
@@ -2481,105 +2457,111 @@ function shopRow(thumb, name, sub, tier, current, cost, action) {
   return `<div class="row${tier === current ? " mine" : ""}"><img src="${thumb}" alt=""><div><div class="name">${name}</div><div class="sub">${sub}</div></div>${status}</div>`;
 }
 
+const agoText = ms => (ms < 5000 ? "just now" : ms < 60000 ? `${Math.round(ms / 1000)} seconds ago` : `${Math.round(ms / 60000)} min ago`);
+function saveStatus() {
+  if (saveError) return `<span class="no">${saveError}</span>`;
+  const where = saveStore.kind === "cloud" ? "to your Claude account" : "in this browser";
+  return `Progress saves automatically ${where}.${lastSaved ? ` Last saved ${agoText(Date.now() - lastSaved)}.` : ""}`;
+}
+
 const RENDER = {
+  pause: () => `
+    <h2>${started ? "Paused" : "Sports Legends Simulator"}</h2>
+    <p class="note">${started
+      ? `${world.def.name}, ${world.def.zones[currentZone]}<br>Rebirths: <b>${state.rebirths}</b> · Cash boost: <b>${boostText(cashBoost())}</b>`
+      : "Smash balls, sell them for cash, hatch pets and unlock all five sports worlds."}</p>
+    <button class="btn green wide" type="button" data-action="resume">${started ? "Resume" : "Play"}</button>
+    <button class="btn blue wide" type="button" data-action="mute">Sound: ${state.muted ? "Off" : "On"}</button>
+    <div class="controls">
+      <span><kbd>WASD</kbd>Move</span>
+      <span><kbd>Space</kbd>Jump</span>
+      <span><kbd>Click</kbd>Swing</span>
+      <span><kbd>Drag</kbd>Look around</span>
+      <span><kbd>Scroll</kbd>Zoom</span>
+      <span><kbd>Esc</kbd>Pause</span>
+    </div>
+    <p class="note">${saveStatus()}</p>
+    ${started ? `<button class="btn red" type="button" data-action="reset">${resetArmed ? "Click again to erase everything" : "Reset progress"}</button>` : ""}`,
   shop: () => `
-    <h2>Gear Shop</h2>
+    <h2>Shop</h2>
     <div class="tabs">
       <button class="tab${shopTab === "gear" ? " on" : ""}" type="button" data-action="tab" data-arg="gear">Gear</button>
       <button class="tab${shopTab === "bags" ? " on" : ""}" type="button" data-action="tab" data-arg="bags">Bags</button>
     </div>
     ${shopTab === "gear"
-      ? GEAR.map(g => shopRow(thumbs.gear[g.tier], g.name, `Grabs ${fmt(gearPower(g.tier))} ${g.tier === 0 ? "ball" : "balls"} per hit`, g.tier, state.gear, gearCost(g.tier), "buyGear")).join("")
+      ? GEAR.map(g => shopRow(thumbs.gear[g.tier], g.name, `${fmt(gearPower(g.tier))} ${g.tier === 0 ? "ball" : "balls"} per hit`, g.tier, state.gear, gearCost(g.tier), "buyGear")).join("")
       : BAGS.map(b => shopRow(thumbs.bag[b.tier], b.name, `Holds ${fmt(bagCapacity(b.tier))} balls`, b.tier, state.bag, bagCost(b.tier), "buyBag")).join("")}`,
   egg: () => {
-    const def = WORLDS[state.world];
     const cost = eggCost(state.world);
     return `
-      <p class="kicker">World ${state.world + 1} pets</p>
-      <h2>${def.egg}</h2>
-      <p class="note">Pets boost how much cash every ball is worth. Your best ${PETS_EQUIPPED} follow you around.</p>
+      <h2>${WORLDS[state.world].egg}</h2>
+      <p class="note">Your best ${PETS_EQUIPPED} pets follow you and boost your cash.</p>
       <div class="cards">${PETS.filter(p => p.world === state.world).map(p => `
         <div class="card">
           <img src="${thumbs.pet[p.id]}" alt="">
           <div class="name r${p.rarity}">${p.name}</div>
-          <div class="sub">${RARITIES[p.rarity].name} · ${pct(p.bonus)}</div>
-          <div class="sub"><b>${RARITIES[p.rarity].chance}%</b> chance</div>
+          <div class="sub">${RARITIES[p.rarity].name}, ${RARITIES[p.rarity].chance}%</div>
+          <div class="sub">${pct(p.bonus)} cash</div>
         </div>`).join("")}</div>
       <div class="buttons">
-        ${buyButton("hatch", 1, cost, `Hatch 1 · ${money(cost)}`)}
-        ${buyButton("hatch", 3, cost * 3, `Hatch 3 · ${money(cost * 3)}`)}
+        ${buyButton("hatch", 1, cost, `Hatch 1 (${money(cost)})`)}
+        ${buyButton("hatch", 3, cost * 3, `Hatch 3 (${money(cost * 3)})`)}
       </div>`;
   },
   pets: () => {
     const equipped = equippedPets();
     const owned = PETS.filter(p => state.pets[p.id]).sort((a, b) => b.bonus - a.bonus);
     const list = owned.length === 0
-      ? '<p class="note">No pets yet. Hatch eggs at the purple EGGS pad near spawn.</p>'
-      : `<div class="cards">${owned.map(p => {
-        const on = equipped.filter(e => e === p).length;
-        return `
-          <div class="card${on ? " equipped" : ""}">
+      ? '<p class="note">No pets yet. Hatch some at the EGGS pad.</p>'
+      : `<div class="cards">${owned.map(p => `
+          <div class="card${equipped.includes(p) ? " equipped" : ""}">
             <span class="count">x${state.pets[p.id]}</span>
             <img src="${thumbs.pet[p.id]}" alt="">
             <div class="name r${p.rarity}">${p.name}</div>
-            <div class="sub">${RARITIES[p.rarity].name} · ${pct(p.bonus)}</div>
-            <div class="sub">${on ? `${on} equipped` : "In storage"}</div>
-          </div>`;
-      }).join("")}</div>`;
+            <div class="sub">${pct(p.bonus)} cash</div>
+          </div>`).join("")}</div>`;
     return `
       <h2>Pets</h2>
-      <p class="note">Pet boost <b>${boostText(petBoost())}</b>. Your best ${PETS_EQUIPPED} pets are equipped automatically.</p>
+      <p class="note">Cash boost from pets: <b>${boostText(petBoost())}</b>. The green ones are following you.</p>
       ${list}`;
   },
   rebirth: () => {
     const cost = rebirthCost(state.rebirths);
     const next = WORLDS.find(d => d.rebirths > state.rebirths);
     return `
-      <p class="kicker">Rebirth ${state.rebirths + 1}</p>
-      <h2>Start over stronger</h2>
-      <p class="note">Rebirthing resets your <b>cash, gear and bag</b>. You keep your <b>worlds, zones and pets</b>.</p>
-      <div class="compare">
-        <div>Cash boost now<b>${boostText(rebirthBoost(state.rebirths))}</b></div>
-        <span>→</span>
-        <div>After rebirth<b>${boostText(rebirthBoost(state.rebirths + 1))}</b></div>
-      </div>
-      ${next ? `<p class="note">${next.name} needs <b>${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}</b>. You have ${state.rebirths}.</p>` : ""}
-      ${buyButton("rebirth", 0, cost, `Rebirth for ${money(cost)}`, "gold wide")}`;
+      <h2>Rebirth</h2>
+      <p class="note">Start over with a bigger cash boost. You lose your cash, gear and bag but keep your worlds, zones and pets.</p>
+      <p class="note">Cash boost: <b>${boostText(rebirthBoost(state.rebirths))}</b> → <b>${boostText(rebirthBoost(state.rebirths + 1))}</b></p>
+      ${next ? `<p class="note">${next.name} needs ${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}. You have ${state.rebirths}.</p>` : ""}
+      ${buyButton("rebirth", 0, cost, `Rebirth (${money(cost)})`, "yellow wide")}`;
   },
   gate: () => {
     const k = openZonesHere();
     const zone = zoneIndex(state.world, k);
     return `
-      <p class="kicker">Zone ${k + 1}</p>
       <h2>${world.def.zones[k]}</h2>
-      <p class="note">Every ball here is worth <b>${money(ballValue(zone))}</b>, 3x more than in ${world.def.zones[k - 1]}.</p>
-      ${buyButton("unlock", 0, zoneCost(zone), `Unlock for ${money(zoneCost(zone))}`, "wide")}`;
+      <p class="note">Balls here are worth <b>${money(ballValue(zone))}</b> each.</p>
+      ${buyButton("unlock", 0, zoneCost(zone), `Unlock (${money(zoneCost(zone))})`, "wide")}`;
   },
   portal: () => {
     const w = state.world;
     if (w === WORLDS.length - 1) {
       return state.champion
-        ? `<p class="kicker">Champion</p><h2>You are a Sports Legend!</h2>
-           <p class="note">The trophy is yours. Keep rebirthing to grow your cash boost and collect every pet.</p>`
-        : `<p class="kicker">The Championship</p><h2>Win the Trophy</h2>
-           <p class="note">Buy the Championship Trophy to finish the game as a Sports Legend.</p>
-           ${buyButton("champion", 0, TROPHY_COST, `Win it for ${money(TROPHY_COST)}`, "gold wide")}`;
+        ? `<h2>You're a Sports Legend!</h2><p class="note">The trophy is yours. Keep rebirthing and collecting pets.</p>`
+        : `<h2>Championship Trophy</h2><p class="note">Buy the trophy to win the game.</p>
+           ${buyButton("champion", 0, TROPHY_COST, `Buy it (${money(TROPHY_COST)})`, "yellow wide")}`;
     }
     const next = WORLDS[w + 1];
     if (worldUnlocked(w + 1)) {
-      return `<p class="kicker">World ${w + 2}</p><h2>${next.name}</h2>
-        <button class="btn wide" type="button" data-action="travel" data-arg="${w + 1}">Travel</button>`;
+      return `<h2>${next.name}</h2><button class="btn blue wide" type="button" data-action="travel" data-arg="${w + 1}">Travel</button>`;
     }
     const cost = zoneCost(zoneIndex(w + 1, 0));
     const ready = state.rebirths >= next.rebirths;
     return `
-      <p class="kicker">World ${w + 2}</p>
       <h2>${next.name}</h2>
-      <ul class="reqs">
-        <li><span>Cash</span><span class="${state.cash >= cost ? "ok" : "no"}">${money(cost)}</span></li>
-        <li><span>Rebirths</span><span class="${ready ? "ok" : "no"}">${state.rebirths} / ${next.rebirths}</span></li>
-      </ul>
-      ${ready ? buyButton("unlockWorld", w + 1, cost, "Unlock and travel", "wide") : '<button class="btn wide" type="button" disabled>Rebirth more to unlock</button>'}`;
+      <p class="note">Costs <span class="${state.cash >= cost ? "ok" : "no"}">${money(cost)}</span> and needs
+        <span class="${ready ? "ok" : "no"}">${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}</span>. You have ${state.rebirths}.</p>
+      ${ready ? buyButton("unlockWorld", w + 1, cost, "Unlock", "wide") : '<button class="btn wide" type="button" disabled>Rebirth more first</button>'}`;
   },
   travel: () => `
     <h2>Travel</h2>
@@ -2587,11 +2569,10 @@ const RENDER = {
       const status = w === state.world
         ? '<span class="tag">You are here</span>'
         : worldUnlocked(w)
-          ? `<button class="btn" type="button" data-action="travel" data-arg="${w}">Go</button>`
+          ? `<button class="btn blue" type="button" data-action="travel" data-arg="${w}">Go</button>`
           : '<span class="tag dim">Locked</span>';
-      return `<div class="row${w === state.world ? " mine" : ""}"><img src="${thumbs.egg[w]}" alt=""><div><div class="name">${def.name}</div><div class="sub">World ${w + 1} · ${def.zones.join(", ")}</div></div>${status}</div>`;
-    }).join("")}
-    <p class="note">Unlock new worlds through the portal at the end of each world.</p>`,
+      return `<div class="row${w === state.world ? " mine" : ""}"><img src="${thumbs.egg[w]}" alt=""><div><div class="name">${def.name}</div><div class="sub">World ${w + 1}</div></div>${status}</div>`;
+    }).join("")}`,
 };
 
 function openPanel(kind) {
@@ -2610,10 +2591,47 @@ function togglePanel(kind) {
   if (panelKind === kind) closePanel();
   else openPanel(kind);
 }
+const CLOSE_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg>';
+
+// Pause menu. The game starts paused on it, with a Play button.
+let paused = true;
+let started = false;
+let resetArmed = false;
+function openPause() {
+  paused = true;
+  resetArmed = false;
+  keys.clear();
+  document.body.classList.add("paused");
+  openPanel("pause");
+  saveProgress();
+}
+function resume() {
+  paused = false;
+  document.body.classList.remove("paused");
+  closePanel();
+  sound.unlock();
+  sound.play("click");
+  if (!started) toast(world.def.name, `World ${state.world + 1}`);
+  started = true;
+}
+function handleEscape() {
+  if (hatchFx) {
+    if (hatchFx.cracked) closeHatch();
+    return;
+  }
+  if (paused) {
+    if (started) resume();
+    return;
+  }
+  if (panelKind) closePanel();
+  else openPause();
+}
+
 // Only touch the DOM when the content changes, so a click is never lost to a re-render.
 function renderPanel() {
   if (!panelKind) return;
-  const html = `<button class="btn hot close" type="button" data-action="close" aria-label="Close">✕</button>${RENDER[panelKind]()}`;
+  const close = panelKind === "pause" ? "" : `<button class="btn red close" type="button" data-action="close" aria-label="Close">${CLOSE_ICON}</button>`;
+  const html = close + RENDER[panelKind]();
   if (html === panelHtml) return;
   panelHtml = html;
   $("panel").innerHTML = html;
@@ -2626,6 +2644,21 @@ function spend(cost) {
 
 const ACTIONS = {
   close: () => closePanel(),
+  resume: () => resume(),
+  mute: () => { state.muted = !state.muted; },
+  reset: () => {
+    if (!resetArmed) {
+      resetArmed = true;
+      setTimeout(() => { resetArmed = false; renderPanel(); }, 3000);
+      return;
+    }
+    resetArmed = false;
+    Object.assign(state, defaultState(), { muted: state.muted });
+    shownCash = 0;
+    $("cash").textContent = "0";
+    enterWorld();
+    toast("Progress reset");
+  },
   tab: tab => { shopTab = tab; sound.play("click"); },
   buyGear: tier => {
     spend(gearCost(Number(tier)));
@@ -2666,7 +2699,7 @@ const ACTIONS = {
       const a = (i / 16) * Math.PI * 2;
       particles.burst(new THREE.Vector3(p.x + Math.cos(a) * 2, 0.5, p.z + Math.sin(a) * 2), { count: 4, colors: [0xfbbf24, 0xffffff], speed: 1, up: 9, gravity: 4, life: 1.4, size: 0.22 });
     }
-    toast(`REBIRTH ${state.rebirths}`, `Cash boost ${boostText(rebirthBoost(state.rebirths))}`);
+    toast(`Rebirth ${state.rebirths}!`, `Cash boost is now ${boostText(rebirthBoost(state.rebirths))}`);
   },
   unlock: () => {
     const k = openZonesHere();
@@ -2682,7 +2715,7 @@ const ACTIONS = {
     sound.play("cheer");
     world.hype = 1;
     confetti(player.root.position.x, 6, ZONE_START[k]);
-    toast(`ZONE ${k + 1} UNLOCKED`, world.def.zones[k]);
+    toast(`${world.def.zones[k]} unlocked!`);
   },
   unlockWorld: w => {
     w = Number(w);
@@ -2701,7 +2734,7 @@ const ACTIONS = {
     sound.play("cheer");
     world.hype = 1;
     for (let i = 0; i < 4; i++) setTimeout(() => confetti((Math.random() - 0.5) * 20, 10, PORTAL_Z + 6, 80), i * 350);
-    toast("CHAMPION", "You are a Sports Legend!");
+    toast("You're a Sports Legend!", "The Championship Trophy is yours.");
   },
 };
 $("panel").addEventListener("click", e => {
@@ -2709,6 +2742,7 @@ $("panel").addEventListener("click", e => {
   if (!button) return;
   ACTIONS[button.dataset.action](button.dataset.arg);
   refreshHud();
+  saveProgress();
 });
 
 // =====================================================================
@@ -2727,7 +2761,7 @@ function travelTo(w) {
     enterWorld();
     $("fade").classList.remove("on");
     travelling = false;
-    toast(`WORLD ${w + 1}`, WORLDS[w].name);
+    toast(WORLDS[w].name, `World ${w + 1}`);
   }, 450);
 }
 
@@ -2790,7 +2824,7 @@ function updateTriggers() {
   const zone = zoneAt(p.z);
   if (zone !== currentZone) {
     currentZone = zone;
-    toast(`ZONE ${zone + 1}`, world.def.zones[zone]);
+    toast(world.def.zones[zone], `Zone ${zone + 1}`);
     refreshHud();
   }
 }
@@ -2829,46 +2863,50 @@ function updateWorldFx(dt) {
 let clock = 0;
 let saveClock = 0;
 
-await Promise.all(['64px "Russo One"', '64px "Graduate"', '600 16px "Barlow"'].map(f => document.fonts.load(f)));
+await document.fonts.load('700 64px "Fredoka"');
+saveStore = await openSaveStore();
+try {
+  Object.assign(state, defaultState(), await loadProgress());
+} catch (e) {
+  $("loading").textContent = "Couldn't load your saved progress. Reload the page to try again.";
+  throw e;
+}
 player = makePlayer();
 buildThumbnails();
 renderer.setClearColor(0x000000);
 resize();
 addEventListener("resize", resize);
-addEventListener("pagehide", saveState);
-refreshMute();
+addEventListener("pagehide", () => saveProgress());
 enterWorld();
 let last = performance.now();
+shownCash = state.cash;
 $("cash").textContent = fmt(state.cash);
 $("loading").hidden = true;
-toast(`WORLD ${state.world + 1}`, WORLDS[state.world].name);
+openPause();
 
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
-  clock += dt;
-
-  updatePlayer(dt);
-  if (state.auto && state.bagCount < capacity() && nearestNode()) swing();
-  updateNodes(dt);
-  updateFlyers(dt);
-  updateFollowers(dt);
-  updateTriggers();
-  updateWorldFx(dt);
-  particles.update(dt);
-  updateCamera(dt);
-  updateCashDisplay(dt);
-  renderer.render(scene, camera);
-  if (hatchFx) updateHatch(dt);
-
-  saveClock += dt;
-  if (saveClock > 3) {
-    saveClock = 0;
-    if (dirty) {
-      saveState();
-      dirty = false;
+  if (!paused) {
+    clock += dt;
+    updatePlayer(dt);
+    if (state.auto && state.bagCount < capacity() && nearestNode()) swing();
+    updateNodes(dt);
+    updateFlyers(dt);
+    updateFollowers(dt);
+    updateTriggers();
+    updateWorldFx(dt);
+    particles.update(dt);
+    updateCamera(dt);
+    updateCashDisplay(dt);
+    saveClock += dt;
+    if (saveClock > 8) {
+      saveClock = 0;
+      saveProgress();
     }
   }
+  renderer.render(scene, camera);
+  if (hatchFx) updateHatch(dt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
