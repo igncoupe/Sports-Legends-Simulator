@@ -119,7 +119,6 @@ body.hatching #hud, body.hatching #side, body.hatching #pause-btn, body.hatching
 @keyframes flash { from { opacity: 0.9; } to { opacity: 0; } }
 #fade { position: fixed; inset: 0; background: var(--ink); opacity: 0; pointer-events: none; transition: opacity 0.35s; }
 #fade.on { opacity: 1; pointer-events: auto; }
-#loading { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; background: var(--ink); font-size: 26px; font-weight: 700; }
 
 /* ---------- Panels ---------- */
 #panel {
@@ -177,8 +176,85 @@ kbd {
 #hatch-hint { font-size: 15px; color: var(--dim); }
 @keyframes pop-in { from { transform: scale(0.4); opacity: 0; } }
 
+/* ---------- Loading screen: floodlights over a pitch, bouncing logo and balls ---------- */
+#loading {
+  position: fixed; inset: 0; z-index: 20; overflow: hidden;
+  display: grid; place-content: center; justify-items: center; gap: 22px; padding: 16px; text-align: center;
+  background: radial-gradient(circle at 50% 35%, #26357a, var(--ink) 75%);
+  transition: opacity 0.6s ease, scale 0.6s ease;
+}
+#loading.done { opacity: 0; scale: 1.06; pointer-events: none; }
+.pitch {
+  position: absolute; left: 50%; bottom: -40vh; width: 170vw; height: 64vh; translate: -50% 0; border-radius: 50%;
+  background: repeating-linear-gradient(90deg, #2f8f45 0 6vw, #37a04f 6vw 12vw);
+  box-shadow: 0 -10px 60px rgb(90 210 130 / 0.3);
+}
+.beam {
+  position: absolute; top: -20vh; width: 60vmax; height: 150vmax; pointer-events: none; transform-origin: 50% 0;
+  background: linear-gradient(to bottom, rgb(255 250 220 / 0.3), transparent 65%);
+  clip-path: polygon(50% 0, 72% 100%, 28% 100%);
+}
+.beam.left { left: -30vmax; animation: sweep-left 5s ease-in-out infinite alternate; }
+.beam.right { right: -30vmax; animation: sweep-right 5s ease-in-out infinite alternate; }
+@keyframes sweep-left { from { rotate: -42deg; } to { rotate: -12deg; } }
+@keyframes sweep-right { from { rotate: 42deg; } to { rotate: 12deg; } }
+
+.logo { --logo-scale: 1; position: relative; display: grid; justify-items: center; line-height: 0.95; font-weight: 700; paint-order: stroke fill; }
+.logo span { display: inline-block; animation: drop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) both, bob 2.6s ease-in-out infinite; animation-delay: calc(var(--i) * 70ms), calc(1.4s + var(--i) * 110ms); }
+.logo-top { font-size: calc(clamp(28px, 6vw, 56px) * var(--logo-scale)); letter-spacing: 0.12em; -webkit-text-stroke: calc(8px * var(--logo-scale)) var(--ink); }
+.logo-main {
+  font-size: calc(clamp(60px, 14vw, 132px) * var(--logo-scale)); color: var(--yellow);
+  -webkit-text-stroke: calc(13px * var(--logo-scale)) var(--ink);
+  text-shadow: 0 calc(7px * var(--logo-scale)) 0 var(--ink), 0 12px 24px rgb(0 0 0 / 0.4);
+}
+.logo-tag {
+  margin-top: calc(8px * var(--logo-scale)); padding: 4px 18px; border: 4px solid var(--ink); border-radius: 12px;
+  background: var(--blue); font-size: calc(clamp(18px, 3.4vw, 30px) * var(--logo-scale)); letter-spacing: 0.2em;
+  -webkit-text-stroke: 5px var(--ink); rotate: -3deg; animation: stamp 0.5s 1.05s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes drop { from { translate: 0 -110vh; } }
+@keyframes bob { 50% { transform: translateY(-7px); } }
+@keyframes stamp { from { scale: 0; } }
+
+.balls { position: relative; display: flex; gap: 18px; height: 78px; align-items: end; }
+.ball { width: 40px; height: 40px; animation: hop 0.45s cubic-bezier(0.3, 0, 0.6, 1) infinite alternate, spin 1.2s linear infinite; animation-delay: calc(var(--i) * -0.09s), 0s; }
+@keyframes hop { from { translate: 0 0; scale: 1.15 0.85; } 25% { scale: 1 1; } to { translate: 0 -34px; } }
+@keyframes spin { to { rotate: 360deg; } }
+.bar { position: relative; width: min(380px, 80vw); height: 22px; padding: 3px; box-sizing: border-box; border: 4px solid var(--ink); border-radius: 14px; background: rgb(10 14 32 / 0.6); overflow: hidden; }
+#load-fill {
+  height: 100%; border-radius: 8px; transform-origin: left; scale: 0.03 1; transition: scale 0.35s ease-out;
+  background: repeating-linear-gradient(-45deg, var(--green) 0 12px, #4cd77a 12px 24px);
+}
+#load-status { position: relative; min-height: 1.4em; font-size: 18px; color: var(--dim); }
+.tips { position: relative; width: min(560px, 92vw); height: 1.5em; font-size: 16px; }
+.tips span { position: absolute; inset: 0; opacity: 0; animation: tip 15s infinite; animation-delay: calc(var(--i) * 3s); }
+@keyframes tip { 0% { opacity: 0; translate: 0 6px; } 3%, 17% { opacity: 1; translate: 0 0; } 20%, 100% { opacity: 0; } }
+
+/* ---------- Title screen: the trailer plays behind letterbox bars ---------- */
+#title {
+  position: fixed; inset: 0; z-index: 5; pointer-events: none;
+  display: grid; grid-template-rows: auto 1fr auto; justify-items: center; align-items: center;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px calc(22px + env(safe-area-inset-bottom, 0px));
+}
+#title::before, #title::after { content: ""; position: fixed; left: 0; right: 0; z-index: -1; height: 8vh; background: #000; animation: bar-in 0.8s ease-out both; }
+#title::before { top: 0; }
+#title::after { bottom: 0; --from: 100%; }
+@keyframes bar-in { from { translate: 0 calc(var(--from, -100%)); } }
+#title .logo { --logo-scale: 0.5; }
+#card { align-self: end; margin-bottom: 3vh; display: grid; justify-items: center; gap: 6px; text-align: center; opacity: 0; }
+#card.show { animation: card-in 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+@keyframes card-in { from { opacity: 0; scale: 0.6; } to { opacity: 1; scale: 1; } }
+#card-title { font-size: clamp(36px, 7vw, 78px); font-weight: 700; line-height: 1; text-transform: uppercase; -webkit-text-stroke: 10px var(--ink); }
+#card-sub { font-size: clamp(16px, 2.4vw, 22px); -webkit-text-stroke: 5px var(--ink); }
+.title-actions { display: grid; justify-items: center; gap: 8px; }
+.title-actions p { margin: 0; font-size: 15px; -webkit-text-stroke: 4px var(--ink); }
+#play { pointer-events: auto; font-size: 30px; padding: 12px 70px; animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { scale: 1.06; } }
+body.title #hud, body.title #side, body.title #pause-btn { visibility: hidden; }
+
 @media (prefers-reduced-motion: reduce) {
-  .reveal { animation: none; }
+  .reveal, .beam, .logo span, .logo-tag, .ball, #play, #card.show { animation: none; }
+  #card.show { opacity: 1; }
   #toast, #fade { transition: none; }
   .pop { animation-name: fade; }
   @keyframes fade { from { transform: translate(-50%, -50%); opacity: 1; } to { transform: translate(-50%, -50%); opacity: 0; } }
@@ -202,6 +278,14 @@ kbd {
   <svg width="20" height="22" viewBox="0 0 20 22" fill="currentColor" aria-hidden="true"><rect x="2" y="1" width="6" height="20" rx="2"/><rect x="12" y="1" width="6" height="20" rx="2"/></svg>
 </button>
 
+<div id="title" hidden>
+  <div id="title-logo"></div>
+  <div id="card" class="outlined"><div id="card-title"></div><div id="card-sub"></div></div>
+  <div class="title-actions">
+    <button id="play" class="btn green" type="button">Play</button>
+    <p class="outlined">Press Esc during the game to pause</p>
+  </div>
+</div>
 <div id="toast" class="outlined"><div id="toast-title"></div><div id="toast-sub"></div></div>
 <div id="fx" class="outlined"></div>
 <div id="panel" hidden></div>
@@ -211,7 +295,26 @@ kbd {
 </div>
 <div id="flash"></div>
 <div id="fade"></div>
-<div id="loading">Loading…</div>
+<div id="loading">
+  <div class="pitch" aria-hidden="true"></div>
+  <div class="beam left" aria-hidden="true"></div>
+  <div class="beam right" aria-hidden="true"></div>
+  <div id="logo" class="logo">
+    <div class="logo-top"><span style="--i:0">S</span><span style="--i:1">P</span><span style="--i:2">O</span><span style="--i:3">R</span><span style="--i:4">T</span><span style="--i:5">S</span></div>
+    <div class="logo-main"><span style="--i:6">L</span><span style="--i:7">E</span><span style="--i:8">G</span><span style="--i:9">E</span><span style="--i:10">N</span><span style="--i:11">D</span><span style="--i:12">S</span></div>
+    <div class="logo-tag">SIMULATOR</div>
+  </div>
+  <div class="balls" aria-hidden="true">
+    <svg class="ball" style="--i:0" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#fff" stroke="#141a33" stroke-width="3"/><path d="M20 12l7 5-3 8h-8l-3-8z" fill="#141a33"/><path d="M20 3v9M27 17l9-3M24 25l5 8M16 25l-5 8M13 17l-9-3" stroke="#141a33" stroke-width="2"/></svg>
+    <svg class="ball" style="--i:1" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#e8742a" stroke="#141a33" stroke-width="3"/><path d="M3 20h34M20 3v34M8 8c6 6 6 18 0 24M32 8c-6 6-6 18 0 24" fill="none" stroke="#141a33" stroke-width="2"/></svg>
+    <svg class="ball" style="--i:2" viewBox="0 0 40 40"><ellipse cx="20" cy="20" rx="18" ry="11" transform="rotate(-30 20 20)" fill="#7a3b17" stroke="#141a33" stroke-width="3"/><path d="M14 24l12-8M15 19l3 4M18.5 17l3 4M22 15l3 4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+    <svg class="ball" style="--i:3" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#f5f5f0" stroke="#141a33" stroke-width="3"/><path d="M10 7c5 7 5 19 0 26M30 7c-5 7-5 19 0 26" fill="none" stroke="#dc2626" stroke-width="2.4" stroke-dasharray="3 2"/></svg>
+    <svg class="ball" style="--i:4" viewBox="0 0 40 40"><ellipse cx="20" cy="26" rx="17" ry="7" fill="#15171c" stroke="#141a33" stroke-width="3"/><rect x="3" y="17" width="34" height="9" fill="#15171c"/><ellipse cx="20" cy="17" rx="17" ry="7" fill="#2f3440" stroke="#141a33" stroke-width="3"/></svg>
+  </div>
+  <div class="bar"><div id="load-fill"></div></div>
+  <div id="load-status">Getting ready</div>
+  <div class="tips"><span style="--i:0">Tip: Pets boost how much cash every ball is worth.</span><span style="--i:1">Tip: A bigger bag means fewer trips to the CASH pad.</span><span style="--i:2">Tip: Turn on Auto and let your athlete do the swinging.</span><span style="--i:3">Tip: Rebirths unlock new worlds and boost your cash for good.</span><span style="--i:4">Tip: Press Esc any time to pause.</span></div>
+</div>
 
 <script type="importmap">
 {
@@ -1763,6 +1866,7 @@ function buildWorld(w) {
   const gateMat = own(new THREE.MeshBasicMaterial({ map: own(stripesTexture(def.accent)), color: 0xffffff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
   gateMat.map.repeat.set(FIELD_W / 6, 7 / 6);
   const gates = [];
+  const openHere = clamp(state.zones - w * 3, 1, 3);
   for (let k = 1; k < 3; k++) {
     const zone = zoneIndex(w, k);
     if (state.zones > zone) continue;
@@ -1779,7 +1883,7 @@ function buildWorld(w) {
     ], 13, 4.6, def.accent);
     sign.position.y = 9.8;
     group.add(sign);
-    group.visible = k === openZonesHere();
+    group.visible = k === openHere;
     root.add(group);
     gates.push({ k, group, sinking: -1 });
   }
@@ -1816,7 +1920,7 @@ function buildWorld(w) {
     sign.position.y = 11.6;
     portal.add(sign);
   }
-  portal.visible = openZonesHere() === 3;
+  portal.visible = openHere === 3;
   root.add(portal);
 
   const flyerPool = [];
@@ -1843,6 +1947,11 @@ addEventListener("keydown", e => {
   if (e.code === "Escape") {
     e.preventDefault();
     handleEscape();
+    return;
+  }
+  if (trailer && e.code === "Enter") {
+    e.preventDefault();
+    play();
     return;
   }
   if (!GAME_KEYS.has(e.code)) return;
@@ -1998,13 +2107,8 @@ function hit(node) {
   if (balls === 0) return;
   state.bagCount += balls;
   state.bagValue += balls * ballValue(zone) * cashBoost();
-  node.punch = 1;
   node.hits--;
-  sound.play("hit");
-  const top = new THREE.Vector3(node.x, node.kind === "giant" ? 2.8 : 1.6, node.z);
-  particles.burst(top, { count: 8, colors: [0xffffff, 0xfde68a], speed: 5, up: 3, life: 0.4, size: 0.12 });
-  popup(`+${fmt(balls)} ${world.def.icon}`, top.x, top.y + 1, top.z, "info");
-  launchFlyers(top, Math.min(balls, 5));
+  const top = hitEffects(node, balls);
   if (node.hits === 0) {
     node.respawn = RESPAWN_TIME;
     node.breakT = 0;
@@ -2013,6 +2117,16 @@ function hit(node) {
     shake = 0.35;
   }
   refreshHud();
+}
+
+function hitEffects(node, balls) {
+  node.punch = 1;
+  sound.play("hit");
+  const top = new THREE.Vector3(node.x, node.kind === "giant" ? 2.8 : 1.6, node.z);
+  particles.burst(top, { count: 8, colors: [0xffffff, 0xfde68a], speed: 5, up: 3, life: 0.4, size: 0.12 });
+  popup(`+${fmt(balls)} ${world.def.icon}`, top.x, top.y + 1, top.z, "info");
+  launchFlyers(top, Math.min(balls, 5));
+  return top;
 }
 
 function launchFlyers(from, count) {
@@ -2067,16 +2181,20 @@ function updateNodes(dt) {
   }
 }
 
-function sell() {
+function sellEffects(amount) {
   const p = player.root.position;
-  popup(`+${money(state.bagValue)}`, p.x, p.y + 4.4, p.z, "cashpop");
-  flyCoins(p);
+  popup(`+${money(amount)}`, p.x, p.y + 4.4, p.z, "cashpop");
   sound.play("sell");
   particles.burst(new THREE.Vector3(p.x, 2.5, p.z), { count: 18, colors: [0x22c55e, 0xfbbf24, 0xffffff], speed: 5, up: 7, life: 1, size: 0.18 });
+  world.hype = Math.max(world.hype, 0.4);
+}
+
+function sell() {
+  sellEffects(state.bagValue);
+  flyCoins(player.root.position);
   state.cash += state.bagValue;
   state.bagCount = 0;
   state.bagValue = 0;
-  world.hype = Math.max(world.hype, 0.4);
   refreshHud();
 }
 
@@ -2087,27 +2205,29 @@ function sell() {
 let followers = [];
 const FOLLOW_SLOTS = [[-1.5, -2.3], [1.5, -2.3], [-1.6, -4], [1.6, -4]];
 
-function buildFollowers() {
+function buildFollowers(pets = equippedPets()) {
   followers.forEach(f => scene.remove(f.group));
-  const p = player.root.position;
-  followers = equippedPets().map((pet, i) => {
+  followers = pets.map((pet, i) => {
     const group = new THREE.Group();
     const model = petTemplate(pet).clone();
     group.add(model);
-    group.position.set(p.x, 0, p.z);
+    const f = { pet, group, model, hop: Math.random() * 6, slot: FOLLOW_SLOTS[i] };
+    group.position.copy(followerSpot(f.slot));
     scene.add(group);
-    return { pet, group, model, hop: Math.random() * 6, slot: FOLLOW_SLOTS[i] };
+    return f;
   });
 }
 
-function updateFollowers(dt) {
+function followerSpot([sx, sz]) {
   const p = player.root.position;
   const sinF = Math.sin(player.facing);
   const cosF = Math.cos(player.facing);
+  return new THREE.Vector3(p.x + sx * cosF + sz * sinF, 0, p.z - sx * sinF + sz * cosF);
+}
+
+function updateFollowers(dt) {
   for (const f of followers) {
-    const [sx, sz] = f.slot;
-    const tx = p.x + sx * cosF + sz * sinF;
-    const tz = p.z - sx * sinF + sz * cosF;
+    const { x: tx, z: tz } = followerSpot(f.slot);
     const dx = tx - f.group.position.x;
     const dz = tz - f.group.position.z;
     const dist = Math.hypot(dx, dz);
@@ -2172,17 +2292,26 @@ function renderThumb(object, tilt = 0.5) {
   s.stage.remove(holder);
   return url;
 }
-function buildThumbnails() {
+async function buildThumbnails(onProgress) {
   renderer.setSize(160, 160, false);
   renderer.setClearColor(0x2b335c);
-  GEAR.forEach(gear => {
-    const model = gearModel(gear);
-    model.rotation.z = -0.7;
-    thumbs.gear.push(renderThumb(model, 0.3));
-  });
-  BAGS.forEach(bag => thumbs.bag.push(renderThumb(bagModel(bag.tier), 0.6)));
-  PETS.forEach(pet => thumbs.pet.push(renderThumb(petTemplate(pet).clone(), 0.45)));
-  WORLDS.forEach((def, w) => thumbs.egg.push(renderThumb(eggModel(w, false).group, 0.3)));
+  const jobs = [
+    ...GEAR.map(gear => () => {
+      const model = gearModel(gear);
+      model.rotation.z = -0.7;
+      thumbs.gear.push(renderThumb(model, 0.3));
+    }),
+    ...BAGS.map(bag => () => thumbs.bag.push(renderThumb(bagModel(bag.tier), 0.6))),
+    ...PETS.map(pet => () => thumbs.pet.push(renderThumb(petTemplate(pet).clone(), 0.45))),
+    ...WORLDS.map((def, w) => () => thumbs.egg.push(renderThumb(eggModel(w, false).group, 0.3))),
+  ];
+  for (let i = 0; i < jobs.length; i++) {
+    jobs[i]();
+    if (i % 6 === 5) {
+      onProgress((i + 1) / jobs.length);
+      await nextPaint();
+    }
+  }
 }
 
 let hatchFx = null;
@@ -2466,12 +2595,13 @@ function saveStatus() {
 
 const RENDER = {
   pause: () => `
-    <h2>${started ? "Paused" : "Sports Legends Simulator"}</h2>
-    <p class="note">${started
-      ? `${world.def.name}, ${world.def.zones[currentZone]}<br>Rebirths: <b>${state.rebirths}</b> · Cash boost: <b>${boostText(cashBoost())}</b>`
-      : "Smash balls, sell them for cash, hatch pets and unlock all five sports worlds."}</p>
-    <button class="btn green wide" type="button" data-action="resume">${started ? "Resume" : "Play"}</button>
-    <button class="btn blue wide" type="button" data-action="mute">Sound: ${state.muted ? "Off" : "On"}</button>
+    <h2>Paused</h2>
+    <p class="note">${world.def.name}, ${world.def.zones[currentZone]}<br>Rebirths: <b>${state.rebirths}</b> · Cash boost: <b>${boostText(cashBoost())}</b></p>
+    <button class="btn green wide" type="button" data-action="resume">Resume</button>
+    <div class="buttons">
+      <button class="btn blue" type="button" data-action="mute">Sound: ${state.muted ? "Off" : "On"}</button>
+      <button class="btn purple" type="button" data-action="trailer">Watch trailer</button>
+    </div>
     <div class="controls">
       <span><kbd>WASD</kbd>Move</span>
       <span><kbd>Space</kbd>Jump</span>
@@ -2481,7 +2611,7 @@ const RENDER = {
       <span><kbd>Esc</kbd>Pause</span>
     </div>
     <p class="note">${saveStatus()}</p>
-    ${started ? `<button class="btn red" type="button" data-action="reset">${resetArmed ? "Click again to erase everything" : "Reset progress"}</button>` : ""}`,
+    <button class="btn red" type="button" data-action="reset">${resetArmed ? "Click again to erase everything" : "Reset progress"}</button>`,
   shop: () => `
     <h2>Shop</h2>
     <div class="tabs">
@@ -2582,6 +2712,8 @@ function openPanel(kind) {
   renderPanel();
 }
 function closePanel() {
+  // A button left focused inside the hidden panel would still answer Enter.
+  if ($("panel").contains(document.activeElement)) document.activeElement.blur();
   panelKind = null;
   panelHtml = "";
   $("panel").hidden = true;
@@ -2615,12 +2747,13 @@ function resume() {
   started = true;
 }
 function handleEscape() {
+  if (trailer) return;
   if (hatchFx) {
     if (hatchFx.cracked) closeHatch();
     return;
   }
   if (paused) {
-    if (started) resume();
+    resume();
     return;
   }
   if (panelKind) closePanel();
@@ -2645,6 +2778,7 @@ function spend(cost) {
 const ACTIONS = {
   close: () => closePanel(),
   resume: () => resume(),
+  trailer: () => showTitle(),
   mute: () => { state.muted = !state.muted; },
   reset: () => {
     if (!resetArmed) {
@@ -2783,6 +2917,283 @@ function enterWorld() {
 }
 
 // =====================================================================
+// Title screen and trailer. The trailer is directed live in the engine:
+// each shot places the athlete, moves the camera and fires effects.
+// It only touches visuals; the save is never changed.
+// =====================================================================
+
+let trailer = null;
+const lookTarget = new THREE.Vector3();
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+function showTitle() {
+  paused = true;
+  keys.clear();
+  closePanel();
+  document.body.classList.add("title", "paused");
+  const logo = $("logo").cloneNode(true);
+  logo.removeAttribute("id");
+  $("title-logo").replaceChildren(logo);
+  $("title").hidden = false;
+  trailer = { i: -1, t: 0, shots: trailerShots() };
+  nextShot();
+}
+
+function play() {
+  trailer = null;
+  showCard(null);
+  particles.items = [];
+  shake = 0;
+  enterWorld();
+  $("title").hidden = true;
+  document.body.classList.remove("title");
+  resume();
+}
+$("play").addEventListener("click", play);
+
+function showCard(card) {
+  const el = $("card");
+  el.classList.remove("show");
+  if (!card) return;
+  $("card-title").textContent = card[0];
+  $("card-sub").textContent = card[1] ?? "";
+  void el.offsetWidth;
+  el.classList.add("show");
+}
+
+function nextShot() {
+  trailer.i = (trailer.i + 1) % trailer.shots.length;
+  trailer.t = 0;
+  const shot = trailer.shots[trailer.i];
+  shot.start();
+  showCard(shot.card);
+}
+
+function updateTrailer(dt) {
+  clock += dt;
+  trailer.t += dt;
+  if (trailer.t >= trailer.shots[trailer.i].duration) nextShot();
+  trailer.shots[trailer.i].update(trailer.t, dt);
+  updateNodes(dt);
+  updateFlyers(dt);
+  updateFollowers(dt);
+  updateWorldFx(dt);
+  particles.update(dt);
+  shake = Math.max(0, shake - dt * 2.5);
+  camera.position.x += (Math.random() - 0.5) * shake * 0.4;
+  camera.position.y += (Math.random() - 0.5) * shake * 0.4;
+  sky.position.copy(camera.position);
+  const p = player.root.position;
+  sun.position.copy(p).add(SUN_OFFSET);
+  sun.target.position.copy(p);
+}
+
+// Eased camera move between two positions and two look targets over k = 0..1.
+function shoot(k, from, to, lookFrom, lookTo) {
+  const e = smooth(clamp(k, 0, 1));
+  camera.position.lerpVectors(from, to ?? from, e);
+  lookTarget.lerpVectors(lookFrom, lookTo, e);
+  camera.lookAt(lookTarget);
+}
+
+function trailerWorld(w) {
+  if (world.index !== w) {
+    flash();
+    buildWorld(w);
+  }
+  player.kitMat.color.set(WORLDS[w].kit);
+  player.capMat.color.set(WORLDS[w].accent);
+  buildFollowers(PETS.filter(pet => pet.world === w && pet.rarity > 0).reverse());
+}
+
+function placeActor(x, z, facing) {
+  const P = player;
+  P.root.position.set(x, 0, z);
+  P.velocity.set(0, 0, 0);
+  P.facing = facing;
+  P.body.rotation.y = facing;
+  for (const f of followers) f.group.position.copy(followerSpot(f.slot));
+}
+
+// Walks the athlete toward (tx, tz) and runs the normal animation rig.
+function actorStep(dt, tx, tz, speed = 12) {
+  const P = player;
+  const p = P.root.position;
+  const dx = tx - p.x;
+  const dz = tz - p.z;
+  const d = Math.hypot(dx, dz);
+  const moving = d > 0.1;
+  if (moving) {
+    const step = Math.min(d, speed * dt);
+    p.x += (dx / d) * step;
+    p.z += (dz / d) * step;
+    if (P.swingT >= 1) P.facing = Math.atan2(dx, dz);
+  }
+  const turn = Math.atan2(Math.sin(P.facing - P.body.rotation.y), Math.cos(P.facing - P.body.rotation.y));
+  P.body.rotation.y += turn * (1 - Math.exp(-dt * 14));
+  animatePlayer(dt, moving, false, moving ? speed : 0);
+}
+const actorIdle = dt => actorStep(dt, player.root.position.x, player.root.position.z);
+
+function trailerShots() {
+  const home = state.world;
+  const montage = WORLDS.map((def, w) => ({
+    duration: 1.8,
+    start() {
+      trailerWorld(w);
+      placeActor(0, 12, Math.PI);
+      world.hype = 1;
+      this.card = [def.name, `World ${w + 1}`];
+    },
+    update(t, dt) {
+      actorStep(dt, 0, -12);
+      shoot(t / 1.8, V(-18, 13, 33), V(14, 9, 31), V(0, 1, 6), V(0, 1, -6));
+    },
+  }));
+  return [
+    {
+      duration: 4,
+      start() {
+        trailerWorld(home);
+        placeActor(0, SPAWN_Z, Math.PI);
+        world.hype = 0.6;
+      },
+      update(t, dt) {
+        actorIdle(dt);
+        shoot(t / 4, V(-24, 3, 31), V(-6, 20, 33), V(0, 3, 10), V(0, 0, -24));
+      },
+    },
+    {
+      duration: 4.4,
+      card: ["Smash balls", "Every swing fills your bag"],
+      start() {
+        const node = world.nodes.filter(n => n.k === 0).sort((a, b) => Math.hypot(a.x, a.z - SPAWN_Z) - Math.hypot(b.x, b.z - SPAWN_Z))[0];
+        const toward = new THREE.Vector2(-node.x, SPAWN_Z - node.z).normalize();
+        this.node = node;
+        this.stand = V(node.x + toward.x * (node.radius + 1.1), 0, node.z + toward.y * (node.radius + 1.1));
+        this.side = V(-toward.y, 0, toward.x);
+        this.mid = V((this.stand.x + node.x) / 2, 1.3, (this.stand.z + node.z) / 2);
+        this.swings = [0.9, 1.45, 2.0, 2.55, 3.1, 3.65];
+        this.hits = [];
+        placeActor(node.x + toward.x * 9, node.z + toward.y * 9, Math.atan2(-toward.x, -toward.y));
+      },
+      update(t, dt) {
+        const n = this.node;
+        actorStep(dt, this.stand.x, this.stand.z);
+        if (t > 0.8 && player.swingT >= 1) player.facing = Math.atan2(n.x - player.root.position.x, n.z - player.root.position.z);
+        if (this.swings.length && t >= this.swings[0]) {
+          this.swings.shift();
+          player.swingT = 0;
+          sound.play("swing");
+          this.hits.push(t + 0.15);
+        }
+        if (this.hits.length && t >= this.hits[0]) {
+          this.hits.shift();
+          hitEffects(n, gearPower(4));
+          shake = 0.15;
+        }
+        const from = this.mid.clone().addScaledVector(this.side, 8).setY(2.6);
+        const to = this.mid.clone().addScaledVector(this.side, 5).setY(1.9);
+        shoot(t / 4.4, from, to, this.mid, this.mid);
+      },
+    },
+    {
+      duration: 3.2,
+      card: ["Sell for cash", "Bigger bags, bigger paydays"],
+      start() {
+        this.pad = world.pads.find(pad => pad.kind === "sell");
+        this.sold = false;
+        placeActor(this.pad.x + 9, this.pad.z - 6, -Math.PI / 2);
+      },
+      update(t, dt) {
+        const pad = this.pad;
+        actorStep(dt, pad.x, pad.z);
+        if (!this.sold && Math.hypot(player.root.position.x - pad.x, player.root.position.z - pad.z) < 0.2) {
+          this.sold = true;
+          sellEffects(ballValue(zoneIndex(world.index, 0)) * 400);
+        }
+        const a = 0.9 - t * 0.3;
+        const at = V(pad.x, 1.4, pad.z);
+        shoot(1, V(pad.x + Math.sin(a) * 9, 4.5, pad.z + Math.cos(a) * 7), null, at, at);
+      },
+    },
+    {
+      duration: 3.6,
+      card: ["Hatch pets", "They follow you and boost your cash"],
+      start() {
+        this.dir = V(-22, 0, -14).normalize();
+        this.side = V(-this.dir.z, 0, this.dir.x);
+        placeActor(11, 30, Math.atan2(this.dir.x, this.dir.z));
+      },
+      update(t, dt) {
+        actorStep(dt, -11, 16, 10);
+        const p = player.root.position;
+        const at = p.clone().addScaledVector(this.dir, -1.6).setY(1.1);
+        const cam = p.clone().addScaledVector(this.side, 8).addScaledVector(this.dir, 2.5).setY(3);
+        shoot(1, cam, cam, at, at);
+      },
+    },
+    {
+      duration: 3.4,
+      start() {
+        this.gate = world.gates.find(g => g.group.visible && g.sinking < 0);
+        this.z = this.gate ? ZONE_START[this.gate.k] : PORTAL_Z;
+        this.fired = false;
+        this.card = this.gate ? ["Unlock zones", "Every zone's balls are worth 3x more"] : ["Travel to new worlds", "Five sports to master"];
+        world.portal.visible = true;
+        placeActor(2, this.z + (this.gate ? 4 : 6), Math.PI);
+      },
+      update(t, dt) {
+        actorIdle(dt);
+        if (!this.fired && t > 0.9) {
+          this.fired = true;
+          if (this.gate) this.gate.sinking = 0;
+          confetti(0, 6, this.z + 1);
+          sound.play("unlock");
+          sound.play("cheer");
+          world.hype = 1;
+        }
+        const z = this.z;
+        if (this.gate) shoot(t / 3.4, V(11, 5, z + 19), V(5, 6.5, z + 14), V(0, 6.5, z), V(0, 5, z));
+        else shoot(t / 3.4, V(0, 5, z + 19), V(0, 4.8, z + 8), V(0, 4.8, z), V(0, 4.8, z));
+      },
+    },
+    ...montage,
+    {
+      duration: 3.4,
+      card: ["Become a legend", "Win the Championship Trophy"],
+      start() {
+        world.portal.visible = true;
+        placeActor(0, PORTAL_Z + 6, Math.PI);
+        this.bursts = [0.5, 1.3, 2.1];
+      },
+      update(t, dt) {
+        actorIdle(dt);
+        if (this.bursts.length && t >= this.bursts[0]) {
+          this.bursts.shift();
+          confetti((Math.random() - 0.5) * 10, 9, PORTAL_Z + 2, 70);
+          sound.play("cheer");
+        }
+        shoot(t / 3.4, V(8, 3, PORTAL_Z + 15), V(3, 5, PORTAL_Z + 10), V(0, 4, PORTAL_Z), V(0, 4.5, PORTAL_Z));
+      },
+    },
+    {
+      duration: 3,
+      card: ["Ready?", "Press Play"],
+      start() {
+        trailerWorld(home);
+        placeActor(0, SPAWN_Z, Math.PI);
+        world.hype = 0.8;
+      },
+      update(t, dt) {
+        actorIdle(dt);
+        shoot(t / 3, V(0, 2.6, SPAWN_Z - 6), V(0, 18, SPAWN_Z + 11), V(0, 2.2, SPAWN_Z), V(0, 0, -16));
+      },
+    },
+  ];
+}
+
+// =====================================================================
 // Pads, gates, portal and zone changes
 // =====================================================================
 
@@ -2862,8 +3273,16 @@ function updateWorldFx(dt) {
 
 let clock = 0;
 let saveClock = 0;
+const nextPaint = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
 
+const bootStart = performance.now();
+function loadStep(progress, text) {
+  $("load-fill").style.scale = `${Math.max(0.03, progress)} 1`;
+  $("load-status").textContent = text;
+}
+loadStep(0.08, "Warming up");
 await document.fonts.load('700 64px "Fredoka"');
+loadStep(0.18, "Loading your progress");
 saveStore = await openSaveStore();
 try {
   Object.assign(state, defaultState(), await loadProgress());
@@ -2871,23 +3290,32 @@ try {
   $("loading").textContent = "Couldn't load your saved progress. Reload the page to try again.";
   throw e;
 }
+loadStep(0.3, "Suiting up");
+await nextPaint();
 player = makePlayer();
-buildThumbnails();
+await buildThumbnails(p => loadStep(0.32 + p * 0.5, "Hatching pets"));
 renderer.setClearColor(0x000000);
 resize();
 addEventListener("resize", resize);
 addEventListener("pagehide", () => saveProgress());
+loadStep(0.86, "Building the stadium");
+await nextPaint();
 enterWorld();
-let last = performance.now();
 shownCash = state.cash;
 $("cash").textContent = fmt(state.cash);
-$("loading").hidden = true;
-openPause();
+loadStep(1, "Let's play!");
+// Give the logo time to finish dropping in on fast machines.
+await new Promise(r => setTimeout(r, Math.max(0, 1900 - (performance.now() - bootStart))));
+showTitle();
+$("loading").classList.add("done");
+setTimeout(() => { $("loading").hidden = true; }, 700);
+let last = performance.now();
 
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
-  if (!paused) {
+  if (trailer) updateTrailer(dt);
+  else if (!paused) {
     clock += dt;
     updatePlayer(dt);
     if (state.auto && state.bagCount < capacity() && nearestNode()) swing();

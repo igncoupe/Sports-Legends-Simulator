@@ -22,6 +22,8 @@ A 3D Roblox-style simulator game that runs in the browser, built for Chromebooks
 7. **Rebirth** to reset your cash, gear and bag for a permanent cash boost. You keep your worlds, zones and pets.
 8. Buy the Championship Trophy at the end of the Hockey Rink to become a Sports Legend.
 
+The game opens on a title screen that plays a short trailer, filmed live in the game engine. Press **Play** or Enter to start. You can watch it again from the pause menu.
+
 ## Saving
 
 Progress saves automatically every few seconds and right after every purchase. When the game is opened as a claude.ai artifact, it saves to a private document tied to your Claude account, so it survives cleared browser data and follows you to other computers. Any other copy (GitHub Pages, a downloaded file) saves in the browser. The pause menu shows where your progress is saved and when it last saved, and has a Reset progress button.
