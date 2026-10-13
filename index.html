@@ -3,33 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Brainrot Simulator</title>
+<title>Sports Legends Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;800&family=Graduate&family=Russo+One&display=swap">
 <style>
-/* Layout: full-bleed 3D world, chunky outlined HUD pinned to the edges, one modal panel centered over the play field. */
+/* Layout: full-bleed 3D stadium; skewed broadcast-scoreboard chips pinned top-left and top-right; action buttons bottom-center; one modal panel centered. */
 :root {
-  --ink: #1d1433;
+  --ink: #0a1430;
+  --panel: #111d3d;
+  --panel-row: #1a2a52;
+  --line: #2b3f70;
   --paper: #ffffff;
-  --panel: #2b2048;
-  --panel-row: #3b2d63;
-  --aura: #b77bff;
-  --brain: #ff6fb0;
-  --go: #36d27a;
-  --danger: #ff5577;
-  --muted: #6f6790;
-  --warn: #ffd23f;
-  --sky: #8fd6ff;
-  --egg: #f3e9ff;
-  --scrim: rgb(29 20 51 / 0.55);
-  --common: #d9d3ea;
-  --rare: #5ab8ff;
-  --epic: #d07bff;
-  --legendary: #ffc23d;
-  --mythic: #ff5577;
-  --display: "Lilita One", "Arial Black", system-ui, sans-serif;
-  --body: "Nunito", system-ui, sans-serif;
+  --dim: #aebbd6;
+  --cash: #22c55e;
+  --gold: #fbbf24;
+  --hot: #ef4444;
+  --muted: #4b5a7c;
+  --accent: #3b82f6;
+  --scrim: rgb(4 9 24 / 0.78);
+  --sky: #9fd3ff;
+  --common: #cbd5e1;
+  --uncommon: #4ade80;
+  --rare: #38bdf8;
+  --epic: #c084fc;
+  --legendary: #fbbf24;
+  --display: "Graduate", "Rockwell", Georgia, serif;
+  --score: "Russo One", "Arial Black", system-ui, sans-serif;
+  --body: "Barlow", system-ui, sans-serif;
   color-scheme: dark;
 }
 [hidden] { display: none !important; }
@@ -40,125 +41,199 @@ body {
   background: var(--sky);
   color: var(--paper);
   font-family: var(--body);
-  font-weight: 700;
+  font-weight: 600;
   user-select: none;
   -webkit-user-select: none;
 }
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
 
-/* Every big game word: display face, white fill, thick ink outline drawn behind the fill. */
-.big, .btn, .name, .tag, .pop, #toast, #full, #help, #bag-text, h2, h3, .rarity, .pet-name {
-  font-family: var(--display);
-  font-weight: 400;
-  paint-order: stroke fill;
-  -webkit-text-stroke: 4px var(--ink);
+/* ---------- Scoreboard chips ---------- */
+.chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 16px 6px 12px;
+  background: var(--panel);
+  border-left: 6px solid var(--accent);
+  box-shadow: 0 4px 0 var(--ink);
+  transform: skewX(-12deg);
 }
+.chip > * { transform: skewX(12deg); }
+#hud-left {
+  position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 22px;
+  display: grid; gap: 10px; justify-items: start; pointer-events: none;
+}
+.cash { border-left-color: var(--cash); }
+.badge {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--cash); color: var(--ink); font-family: var(--score); font-size: 21px;
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25);
+}
+#cash { font-family: var(--score); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; min-width: 3ch; }
+#cash.bump { animation: bump 0.25s ease-out; }
+@keyframes bump { 50% { transform: skewX(12deg) scale(1.18); } }
+.bag { position: relative; width: 250px; max-width: calc(100vw - 60px); height: 32px; padding: 0; overflow: hidden; }
+.chip > .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); opacity: 0.85; transform: none; transition: width 0.15s; }
+#bag-text { position: relative; width: 100%; text-align: center; font-family: var(--score); font-size: 17px; font-variant-numeric: tabular-nums; }
+.small { font-size: 14px; color: var(--dim); padding-block: 4px; }
+.small b { color: var(--gold); font-weight: 800; }
 
-#stats { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 16px; display: grid; gap: 8px; pointer-events: none; }
-.stat { display: flex; align-items: center; gap: 10px; }
-.big { font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; -webkit-text-stroke: 7px var(--ink); }
-.coin {
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 4px solid var(--ink);
-  background: radial-gradient(circle at 35% 35%, var(--paper) 0 14%, var(--aura) 15%);
+#hud-right {
+  position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 22px;
+  display: flex; gap: 10px; align-items: start;
 }
-#bag { position: relative; width: 250px; max-width: calc(100vw - 32px); height: 28px; border: 4px solid var(--ink); border-radius: 16px; background: var(--panel); overflow: hidden; }
-#bag-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--brain); transition: width 0.15s; }
-#bag-text { position: relative; font-size: 17px; line-height: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+.place { flex-direction: column; align-items: flex-end; gap: 0; padding: 6px 18px; pointer-events: none; }
+#place-world { font-family: var(--score); font-size: 18px; }
+#place-zone { font-size: 14px; color: var(--dim); }
+.icon-btn {
+  width: 46px; height: 46px; display: grid; place-items: center; padding: 0;
+  background: var(--panel); color: var(--paper); border: 0; border-left: 6px solid var(--accent);
+  box-shadow: 0 4px 0 var(--ink); transform: skewX(-12deg); cursor: pointer;
+}
+.icon-btn svg { transform: skewX(12deg); }
+.icon-btn:focus-visible, .btn:focus-visible, .tab:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 
 #help {
-  position: fixed; left: 16px; right: 16px; bottom: calc(82px + env(safe-area-inset-bottom, 0px));
-  margin: 0; text-align: center; font-size: 15px; letter-spacing: 0.02em;
-  -webkit-text-stroke: 4px var(--ink); pointer-events: none;
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  width: max-content; max-width: calc(100% - 32px); box-sizing: border-box;
+  margin: 0; padding: 4px 14px; text-align: center; font-size: 15px; letter-spacing: 0.02em;
+  background: rgb(10 20 48 / 0.6); pointer-events: none;
 }
 #bar {
   position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; pointer-events: none;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; pointer-events: none;
 }
 #bar .btn { pointer-events: auto; }
 
+/* ---------- Buttons ---------- */
 .btn {
-  font-size: 20px; letter-spacing: 0.02em; color: var(--paper);
-  background: var(--go);
-  border: 4px solid var(--ink); border-bottom-width: 7px; border-radius: 14px;
-  padding: 6px 18px; cursor: pointer;
+  font-family: var(--score); font-size: 18px; letter-spacing: 0.02em; color: var(--paper);
+  background: var(--accent); border: 0; padding: 10px 22px;
+  transform: skewX(-12deg); box-shadow: 0 5px 0 var(--ink); cursor: pointer;
 }
-.btn:hover:not(:disabled) { filter: brightness(1.08); }
-.btn:active:not(:disabled) { transform: translateY(3px); border-bottom-width: 4px; }
-.btn:disabled { background: var(--muted); cursor: not-allowed; }
-.btn:focus-visible { outline: 3px solid var(--warn); outline-offset: 3px; }
-.btn.purple { background: var(--aura); }
+.btn:hover:not(:disabled) { filter: brightness(1.12); }
+.btn:active:not(:disabled) { transform: skewX(-12deg) translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.btn:disabled { background: var(--muted); color: var(--dim); cursor: not-allowed; }
+.btn.go { background: var(--cash); }
+.btn.gold { background: var(--gold); color: var(--ink); }
+.btn.hot { background: var(--hot); }
 .btn.off { background: var(--muted); }
-.btn.wide { width: 100%; font-size: 24px; }
-.btn.close { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; padding: 0; background: var(--danger); font-size: 22px; }
+.btn.wide { width: 100%; font-size: 21px; padding-block: 12px; }
 
+/* ---------- Toast, banners, popups ---------- */
 #toast {
-  position: fixed; top: 16%; left: 16px; right: 16px; text-align: center;
-  font-size: clamp(36px, 7vw, 72px); -webkit-text-stroke: 10px var(--ink);
-  opacity: 0; transform: scale(0.9); transition: opacity 0.35s, transform 0.35s; pointer-events: none;
+  position: fixed; top: 15%; left: 16px; right: 16px; display: grid; justify-items: center; gap: 6px;
+  opacity: 0; transform: translateY(-10px) scale(0.96); transition: opacity 0.35s, transform 0.35s; pointer-events: none;
 }
-#toast.show { opacity: 1; transform: scale(1); }
+#toast.show { opacity: 1; transform: none; }
+#toast-kicker {
+  font-family: var(--score); font-size: 16px; letter-spacing: 0.18em; padding: 4px 14px;
+  background: var(--accent); transform: skewX(-12deg); box-shadow: 0 3px 0 var(--ink);
+}
+#toast-title {
+  font-family: var(--display); font-size: clamp(34px, 6.5vw, 70px); line-height: 1.05; text-align: center; text-wrap: balance;
+  paint-order: stroke fill; -webkit-text-stroke: 10px var(--ink);
+}
 #full {
-  position: fixed; top: 30%; left: 16px; right: 16px; text-align: center;
-  font-size: clamp(22px, 4vw, 32px); color: var(--warn); -webkit-text-stroke: 7px var(--ink);
+  position: fixed; top: 31%; left: 16px; right: 16px; text-align: center;
+  font-family: var(--score); font-size: clamp(20px, 3.6vw, 30px); color: var(--gold);
+  paint-order: stroke fill; -webkit-text-stroke: 7px var(--ink);
   pointer-events: none; animation: pulse 0.9s ease-in-out infinite alternate;
 }
 @keyframes pulse { to { transform: scale(1.06); } }
+#fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.pop {
+  position: absolute; font-family: var(--score); font-size: 24px; white-space: nowrap;
+  paint-order: stroke fill; -webkit-text-stroke: 6px var(--ink);
+  animation: rise 0.9s ease-out forwards;
+}
+.pop.cashpop { color: var(--cash); font-size: 34px; }
+.pop.info { color: var(--gold); }
+@keyframes rise {
+  from { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  to { transform: translate(-50%, calc(-50% - 64px)) scale(1); opacity: 0; }
+}
+.coin-fly {
+  position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  display: grid; place-items: center; font-family: var(--score); font-size: 14px; color: var(--ink);
+  background: var(--cash); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25), 0 0 0 3px var(--ink);
+  transition: transform 0.65s cubic-bezier(0.55, -0.35, 0.7, 1), opacity 0.65s;
+}
+#flash { position: fixed; inset: 0; background: var(--paper); opacity: 0; pointer-events: none; }
+#flash.go { animation: flash 0.55s ease-out; }
+@keyframes flash { from { opacity: 0.9; } to { opacity: 0; } }
+#fade { position: fixed; inset: 0; background: var(--ink); opacity: 0; pointer-events: none; transition: opacity 0.35s; }
+#fade.on { opacity: 1; pointer-events: auto; }
+#loading {
+  position: fixed; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center;
+  background: var(--ink); font-family: var(--display); font-size: clamp(26px, 5vw, 44px);
+}
+#loading small { font-family: var(--body); font-size: 16px; color: var(--dim); }
 
+/* ---------- Panels ---------- */
 #panel {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  box-sizing: border-box; width: min(500px, calc(100% - 32px)); max-height: calc(100% - 190px);
-  overflow-y: auto; padding: 18px; display: grid; gap: 10px;
-  background: var(--panel); border: 4px solid var(--ink); border-radius: 22px; box-shadow: 0 8px 0 var(--ink);
+  box-sizing: border-box; width: min(560px, calc(100% - 32px)); max-height: calc(100% - 170px);
+  overflow-y: auto; padding: 20px; display: grid; gap: 12px;
+  background: var(--panel); border-top: 6px solid var(--accent); box-shadow: 0 10px 0 var(--ink), 0 20px 50px rgb(0 0 0 / 0.4);
 }
-#panel h2 { margin: 0 52px 0 0; font-size: 32px; line-height: 1.1; -webkit-text-stroke: 7px var(--ink); }
-#panel h3 { margin: 6px 0 0; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warn); }
+#panel h2 { margin: 0 56px 0 0; font-family: var(--display); font-weight: 400; font-size: 32px; line-height: 1.1; text-wrap: balance; }
+.kicker { margin: 0 0 -6px; font-family: var(--score); font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
+.note { margin: 0; font-size: 16px; line-height: 1.45; color: var(--dim); max-width: 60ch; }
+.note b { color: var(--paper); font-weight: 800; }
+.close { position: absolute; top: 14px; right: 16px; width: 44px; height: 40px; padding: 0; font-size: 18px; }
+.tabs { display: flex; gap: 10px; }
+.tab {
+  flex: 1; font-family: var(--score); font-size: 16px; padding: 8px; border: 0; cursor: pointer;
+  color: var(--dim); background: var(--panel-row); transform: skewX(-12deg);
+}
+.tab.on { color: var(--ink); background: var(--paper); }
 .row {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px;
-  padding: 10px 12px; background: var(--panel-row); border-radius: 14px;
+  display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 8px 12px 8px 8px; background: var(--panel-row);
 }
-.name { font-size: 21px; line-height: 1.15; }
-.sub { font-size: 14px; color: var(--common); }
-.tag { font-size: 18px; color: var(--warn); font-variant-numeric: tabular-nums; }
-.tag.dim { color: var(--common); }
-.row .btn { font-size: 17px; padding: 4px 12px; }
-.note { margin: 0; font-size: 15px; line-height: 1.4; color: var(--common); }
-.note b { color: var(--warn); }
-.r-common { color: var(--common); }
-.r-rare { color: var(--rare); }
-.r-epic { color: var(--epic); }
-.r-legendary { color: var(--legendary); }
-.r-mythic { color: var(--mythic); }
+.row img, .card img { display: block; width: 100%; aspect-ratio: 1; max-width: 100%; }
+.row.mine { box-shadow: inset 4px 0 0 var(--cash); }
+.name { font-family: var(--score); font-size: 18px; line-height: 1.15; }
+.sub { font-size: 14px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.tag { font-family: var(--score); font-size: 15px; color: var(--cash); white-space: nowrap; }
+.tag.dim { color: var(--dim); }
+.row .btn { font-size: 15px; padding: 7px 14px; white-space: nowrap; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.card { position: relative; display: grid; gap: 2px; padding: 8px; background: var(--panel-row); text-align: center; }
+.card .name { font-size: 15px; }
+.card .count { position: absolute; top: 6px; right: 8px; font-family: var(--score); font-size: 14px; }
+.card.equipped { box-shadow: inset 0 0 0 3px var(--cash); }
+.buttons { display: flex; gap: 12px; }
+.buttons .btn { flex: 1; }
+.reqs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.reqs li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; background: var(--panel-row); font-size: 16px; }
+.reqs .ok { color: var(--cash); }
+.reqs .no { color: var(--hot); }
+.compare { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; text-align: center; }
+.compare div { padding: 10px; background: var(--panel-row); }
+.compare b { display: block; font-family: var(--score); font-size: 28px; color: var(--gold); }
+.r0 { color: var(--common); }
+.r1 { color: var(--uncommon); }
+.r2 { color: var(--rare); }
+.r3 { color: var(--epic); }
+.r4 { color: var(--legendary); }
 
-#pops { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
-.pop { position: absolute; font-size: 26px; -webkit-text-stroke: 6px var(--ink); white-space: nowrap; animation: rise 0.9s ease-out forwards; }
-.pop.brain { color: var(--brain); }
-.pop.aura { color: var(--aura); font-size: 36px; }
-@keyframes rise {
-  from { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
-  to { transform: translate(-50%, calc(-50% - 60px)) scale(1); opacity: 0; }
+/* ---------- Egg hatching ---------- */
+#hatch {
+  position: fixed; inset: 0; display: grid; align-content: end; justify-items: center; gap: 6px; cursor: pointer;
+  padding-bottom: calc(9vh + env(safe-area-inset-bottom, 0px));
 }
-
-#hatch { position: fixed; inset: 0; display: grid; place-items: center; background: var(--scrim); cursor: pointer; }
-.egg {
-  width: 150px; height: 190px; box-sizing: border-box;
-  border: 6px solid var(--ink); border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%;
-  background:
-    radial-gradient(circle at 30% 28%, var(--paper) 0 9%, transparent 10%),
-    radial-gradient(circle at 66% 58%, var(--aura) 0 12%, transparent 13%),
-    radial-gradient(circle at 34% 76%, var(--brain) 0 9%, transparent 10%),
-    var(--egg);
-  animation: shake 0.12s ease-in-out infinite alternate;
-}
-@keyframes shake { from { transform: rotate(-9deg); } to { transform: rotate(9deg); } }
-.reveal { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 16px; animation: pop-in 0.35s ease-out; }
-.rarity { font-size: 28px; letter-spacing: 0.1em; text-transform: uppercase; -webkit-text-stroke: 7px var(--ink); }
-.pet-name { font-size: clamp(34px, 8vw, 60px); line-height: 1; text-wrap: balance; -webkit-text-stroke: 10px var(--ink); }
+body.hatching #hud-left, body.hatching #hud-right, body.hatching #help, body.hatching #bar, body.hatching #full, body.hatching #panel { visibility: hidden; }
+#hatch-info { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 36px; min-height: 90px; padding-inline: 16px; }
+.reveal { display: grid; justify-items: center; gap: 2px; animation: pop-in 0.4s ease-out both; }
+.reveal .rarity { font-family: var(--score); font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase; }
+.reveal .pet-name { font-family: var(--display); font-size: clamp(22px, 3.4vw, 34px); paint-order: stroke fill; -webkit-text-stroke: 6px var(--ink); }
+.reveal .sub { color: var(--paper); }
+#hatch-hint { font-size: 15px; color: var(--dim); }
 @keyframes pop-in { from { transform: scale(0.4); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .egg, #full, .reveal { animation: none; }
-  #toast { transition: none; }
+  #full, .reveal { animation: none; }
+  #toast, #fade { transition: none; }
   .pop { animation-name: fade; }
   @keyframes fade { from { transform: translate(-50%, -50%); opacity: 1; } to { transform: translate(-50%, -50%); opacity: 0; } }
 }
@@ -167,101 +242,193 @@ body {
 <body>
 <canvas id="game"></canvas>
 
-<div id="stats">
-  <div class="stat"><span class="coin"></span><span id="aura" class="big">0</span></div>
-  <div id="bag"><div id="bag-fill"></div><div id="bag-text">0 / 25 Brainrot</div></div>
+<div id="hud-left">
+  <div class="chip cash"><span class="badge">$</span><span id="cash">0</span></div>
+  <div class="chip bag"><div id="bag-fill" class="fill"></div><span id="bag-text">0 / 20</span></div>
+  <div class="chip small"><span>Bag worth <b id="bag-worth">$0</b> · Cash boost <b id="boost">x1</b></span></div>
+</div>
+<div id="hud-right">
+  <div class="chip place"><span id="place-world"></span><span id="place-zone"></span></div>
+  <button id="mute" class="icon-btn" type="button" aria-label="Turn sound off"></button>
 </div>
 
 <p id="help">WASD to move · Space to jump · Click to swing · Drag to look around · Scroll to zoom</p>
 <div id="bar">
   <button id="auto" class="btn off" type="button">Auto Swing: Off</button>
-  <button id="pets" class="btn purple" type="button">Pets x1.0</button>
+  <button id="pets" class="btn" type="button">Pets</button>
+  <button id="rebirth" class="btn gold" type="button">Rebirth</button>
 </div>
 
-<div id="toast"></div>
-<div id="full" hidden>Backpack full! Sell it on a green SELL pad.</div>
+<div id="toast"><div id="toast-kicker"></div><div id="toast-title"></div></div>
+<div id="full" hidden>Bag full! Sell it on a green CASH pad.</div>
+<div id="fx"></div>
 <div id="panel" hidden></div>
-<div id="hatch" hidden></div>
-<div id="pops"></div>
+<div id="hatch" hidden>
+  <div id="hatch-info"></div>
+  <div id="hatch-hint" hidden>Click to continue</div>
+</div>
+<div id="flash"></div>
+<div id="fade"></div>
+<div id="loading">Warming up the stadium<small>Building players, pets and worlds</small></div>
 
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
-// ---------- Game data ----------
+// =====================================================================
+// Economy. Every price steps up 10x per tier/zone and income roughly 6x,
+// so each zone takes longer than the last. A greedy-player simulation puts
+// the full run (all 5 worlds and the Championship) at about 3.5 hours.
+// =====================================================================
 
-const TOOLS = [
-  { name: "Stick",           power: 1,   cost: 0,      color: 0x8a5a2b },
-  { name: "Rizz Bat",        power: 3,   cost: 75,     color: 0xff6fb0 },
-  { name: "Sigma Sword",     power: 10,  cost: 600,    color: 0x5ad1ff },
-  { name: "Ohio Hammer",     power: 35,  cost: 4000,   color: 0x9d5cff },
-  { name: "Skibidi Scepter", power: 120, cost: 30000,  color: 0xffd23f },
-  { name: "Aura Blade",      power: 500, cost: 250000, color: 0xffffff },
+const TIERS = 15;
+const PETS_EQUIPPED = 4;
+const ballValue = zone => 3 ** zone;
+const gearPower = tier => 2 ** tier;
+const bagCapacity = tier => 20 * 2 ** tier;
+const gearCost = tier => (tier === 0 ? 0 : 80 * 10 ** (tier - 1));
+const bagCost = tier => (tier === 0 ? 0 : 100 * 10 ** (tier - 1));
+const zoneCost = zone => 600 * 10 ** (zone - 1);
+const eggCost = world => 150 * 300 ** world;
+const rebirthCost = count => 50000 * 8 ** count;
+const rebirthBoost = count => 1 + 0.5 * count;
+const TROPHY_COST = zoneCost(15);
+
+const RARITIES = [
+  { name: "Common", chance: 60, bonus: 0.05 },
+  { name: "Uncommon", chance: 25, bonus: 0.12 },
+  { name: "Rare", chance: 10, bonus: 0.3 },
+  { name: "Epic", chance: 4, bonus: 0.75 },
+  { name: "Legendary", chance: 1, bonus: 2 },
 ];
+
+const WORLDS = [
+  { name: "Soccer Stadium", ball: "soccer", icon: "⚽", zones: ["Training Pitch", "Penalty Box", "Golden Goal"], rebirths: 0, egg: "Soccer Egg",
+    accent: 0x3b82f6, kit: 0x2563eb, seats: 0x1e3a8a, wall: 0x1d4ed8, skyTop: 0x2f7fe0, skyLow: 0xc4e6ff },
+  { name: "Basketball Arena", ball: "basketball", icon: "🏀", zones: ["Practice Court", "Three-Point Line", "Slam Dunk Zone"], rebirths: 1, egg: "Hoops Egg",
+    accent: 0xf97316, kit: 0xdc2626, seats: 0x7f1d1d, wall: 0xb91c1c, skyTop: 0x4b63c9, skyLow: 0xffd6ae },
+  { name: "Football Field", ball: "football", icon: "🏈", zones: ["Practice Field", "Midfield", "Hail Mary Zone"], rebirths: 3, egg: "Gridiron Egg",
+    accent: 0x22c55e, kit: 0x15803d, seats: 0x14532d, wall: 0x166534, skyTop: 0x3a78d0, skyLow: 0xdcefff },
+  { name: "Baseball Park", ball: "baseball", icon: "⚾", zones: ["Bullpen", "Infield", "Home Run Derby"], rebirths: 6, egg: "Diamond Egg",
+    accent: 0xef4444, kit: 0x1e3a8a, seats: 0x1e3a8a, wall: 0x14532d, skyTop: 0x6a5acd, skyLow: 0xffc9b0 },
+  { name: "Hockey Rink", ball: "puck", icon: "🏒", zones: ["Warm-Up Ice", "Blue Line", "Championship Ice"], rebirths: 10, egg: "Frost Egg",
+    accent: 0x38bdf8, kit: 0x0f172a, seats: 0x0c4a6e, wall: 0xf1f5f9, skyTop: 0x1e3a8a, skyLow: 0xd3eaff },
+];
+
+const GEAR = [
+  ["Foam Bat", "bat", "foam"], ["Wooden Bat", "bat", "wood"], ["Tennis Racket", "racket", "red"],
+  ["Hockey Stick", "stick", "wood"], ["Golf Club", "club", "steel"], ["Aluminum Bat", "bat", "steel"],
+  ["Cricket Bat", "cricket", "wood"], ["Carbon Racket", "racket", "carbon"], ["Pro Hockey Stick", "stick", "carbon"],
+  ["Titanium Club", "club", "titanium"], ["Golden Bat", "bat", "gold"], ["Golden Racket", "racket", "gold"],
+  ["Diamond Bat", "bat", "diamond"], ["Diamond Stick", "stick", "diamond"], ["Champion Bat", "bat", "champion"],
+].map(([name, type, finish], tier) => ({ name, type, finish, tier }));
 
 const BAGS = [
-  { name: "Pocket",     capacity: 25,     cost: 0 },
-  { name: "Lunchbox",   capacity: 100,    cost: 50 },
-  { name: "Backpack",   capacity: 400,    cost: 400 },
-  { name: "Duffel Bag", capacity: 2000,   cost: 3000 },
-  { name: "Fanum Sack", capacity: 10000,  cost: 25000 },
-  { name: "Black Hole", capacity: 100000, cost: 200000 },
-];
+  "Pocket Pouch", "Drawstring Bag", "Gym Bag", "Sports Backpack", "Duffel Bag", "Team Duffel", "Ball Bag", "Equipment Bag",
+  "Pro Bag", "Titan Bag", "Golden Bag", "Platinum Bag", "Diamond Bag", "Legend Bag", "Champion Bag",
+].map((name, tier) => ({ name, tier }));
+const BAG_COLORS = [0x6b7280, 0x16a34a, 0x2563eb, 0xdc2626, 0x7c3aed, 0x0891b2, 0xea580c, 0x334155, 0xdb2777, 0x0f766e, 0xfbbf24, 0xe5e7eb, 0x67e8f9, 0xa855f7, 0xf0abfc];
 
-// Chances add up to 100.
-const PETS = [
-  { id: "patapim",     name: "Brr Brr Patapim",      rarity: "Common",    bonus: 0.2, chance: 45,  color: 0x6b8e23 },
-  { id: "chimpanzini", name: "Chimpanzini Bananini", rarity: "Common",    bonus: 0.3, chance: 30,  color: 0xffe14d },
-  { id: "lirili",      name: "Lirili Larila",        rarity: "Rare",      bonus: 0.6, chance: 15,  color: 0x9aa7b0 },
-  { id: "ballerina",   name: "Ballerina Cappuccina", rarity: "Epic",      bonus: 1.2, chance: 7,   color: 0xff9ad5 },
-  { id: "tralalero",   name: "Tralalero Tralala",    rarity: "Legendary", bonus: 2.5, chance: 2.5, color: 0x3f8cff },
-  { id: "bombardiro",  name: "Bombardiro Crocodilo", rarity: "Mythic",    bonus: 6,   chance: 0.5, color: 0x2e7d32 },
-];
-const PET_BY_ID = Object.fromEntries(PETS.map(p => [p.id, p]));
-const EGG_COST = 250;
-const PETS_EQUIPPED = 3;
-
-const NODE_TYPES = {
-  rock:    { name: "Rizz Rock",     value: 1,  hits: 4, radius: 1.3 },
-  crystal: { name: "Sigma Crystal", value: 8,  hits: 6, radius: 1.1 },
-  toilet:  { name: "Golden Toilet", value: 60, hits: 8, radius: 1.2 },
+const FINISH = {
+  foam: { color: 0xfb923c, roughness: 0.9 },
+  wood: { color: 0xc68642, roughness: 0.55 },
+  red: { color: 0xef4444, roughness: 0.35, metalness: 0.2 },
+  steel: { color: 0xd1d5db, roughness: 0.22, metalness: 0.9 },
+  carbon: { color: 0x1f2937, roughness: 0.28, metalness: 0.5 },
+  titanium: { color: 0x93c5fd, roughness: 0.2, metalness: 0.9 },
+  gold: { color: 0xfbbf24, roughness: 0.18, metalness: 1 },
+  diamond: { color: 0x67e8f9, roughness: 0.05, metalness: 0.2, emissive: 0x0891b2, emissiveIntensity: 0.6 },
+  champion: { color: 0xf0abfc, roughness: 0.15, metalness: 0.6, emissive: 0xc026d3, emissiveIntensity: 0.9 },
 };
 
-// Zones run from spawn (z = 30) toward -z. Each zone after the first sits behind a gate.
-const ZONES = [
-  { name: "Skibidi Fields", zStart: 30,  zEnd: -20,  cost: 0,     node: "rock",    ground: 0x63c24c, wall: 0x3f8f34, leaves: 0x2f8f3a },
-  { name: "Ohio",           zStart: -20, zEnd: -60,  cost: 500,   node: "crystal", ground: 0x5a4384, wall: 0x3a2a5c, leaves: 0x7a3fb0 },
-  { name: "Toilet Kingdom", zStart: -60, zEnd: -100, cost: 15000, node: "toilet",  ground: null,     wall: 0x8fb3cc, leaves: 0x2f8f3a },
-];
+const PETS = [
+  ["Kickoff Pup", 0, 0, "dog", 0xd9a066, 0xf5e1c0],
+  ["Goalie Kitty", 0, 1, "cat", 0x9ca3af, 0xe5e7eb],
+  ["Winger Bunny", 0, 2, "bunny", 0xf8fafc, 0xfbcfe8],
+  ["Captain Fox", 0, 3, "fox", 0xf97316, 0xfff7ed],
+  ["Golden Boot Dragon", 0, 4, "dragon", 0xfbbf24, 0xfef3c7],
+  ["Dribble Bear", 1, 0, "bear", 0x8b5a2b, 0xd6b48c],
+  ["Rebound Penguin", 1, 1, "penguin", 0x1f2937, 0xf8fafc],
+  ["Alley-Oop Owl", 1, 2, "owl", 0x7c5cbf, 0xe9d5ff],
+  ["Slam Dunk Tiger", 1, 3, "cat", 0xf59e0b, 0xfff7ed],
+  ["MVP Dragon", 1, 4, "dragon", 0x9333ea, 0xf3e8ff],
+  ["Linebacker Bulldog", 2, 0, "dog", 0xa8a29e, 0xf5f5f4],
+  ["Quarterback Fox", 2, 1, "fox", 0xdc2626, 0xfef2f2],
+  ["Tight End Panda", 2, 2, "panda", 0xf8fafc, 0xf8fafc],
+  ["Touchdown Bunny", 2, 3, "bunny", 0x92400e, 0xfde68a],
+  ["Hail Mary Dragon", 2, 4, "dragon", 0x16a34a, 0xdcfce7],
+  ["Batboy Pup", 3, 0, "dog", 0xfafaf9, 0xd6d3d1],
+  ["Pitcher Owl", 3, 1, "owl", 0x92400e, 0xfde68a],
+  ["Catcher Bear", 3, 2, "bear", 0x44403c, 0xa8a29e],
+  ["Slugger Cat", 3, 3, "cat", 0x1f2937, 0x6b7280],
+  ["Grand Slam Dragon", 3, 4, "dragon", 0xdc2626, 0xfee2e2],
+  ["Skating Penguin", 4, 0, "penguin", 0x1e3a8a, 0xf8fafc],
+  ["Polar Bear Goalie", 4, 1, "bear", 0xf8fafc, 0xe0f2fe],
+  ["Arctic Fox", 4, 2, "fox", 0xe0f2fe, 0xffffff],
+  ["Snowy Owl", 4, 3, "owl", 0xffffff, 0xcbd5e1],
+  ["Ice Dragon", 4, 4, "dragon", 0x7dd3fc, 0xe0f2fe],
+].map(([name, world, rarity, species, body, belly], id) => ({
+  id, name, world, rarity, species, body, belly, bonus: RARITIES[rarity].bonus * (1 + world),
+}));
 
+// =====================================================================
+// World layout. Every world shares it: a hub with pads, three zones running
+// toward -z behind gates, and a portal at the far end.
+// =====================================================================
+
+const HALF = 30;
+const BACK_Z = 34;
+const END_Z = -94;
+const ZONE_START = [14, -22, -58];
+const PORTAL_Z = -86;
+const SPAWN_Z = 21;
+const PAD_RADIUS = 2.8;
+const NODES_PER_ZONE = 12;
+const NODE_KINDS = ["pile", "rack", "giant"];
+const NODE_SPEC = {
+  pile: { hits: 5, radius: 1.2 },
+  rack: { hits: 8, radius: 1.5 },
+  giant: { hits: 12, radius: 1.6 },
+};
 const PADS = [
-  { kind: "sell", x: -14, z: 18 },
-  { kind: "shop", x: 14,  z: 22 },
-  { kind: "egg",  x: 14,  z: 11 },
-  { kind: "sell", x: -22, z: -26 },
-  { kind: "sell", x: -22, z: -66 },
+  { kind: "sell", x: -17, z: 25, booth: [-23.5, 25] },
+  { kind: "shop", x: 17, z: 27, booth: [23.5, 27] },
+  { kind: "egg", x: 17, z: 16, booth: [23.5, 16] },
+  { kind: "travel", x: -17, z: 14, booth: [-23.5, 14] },
+  { kind: "sell", x: -23, z: -28, booth: [-27.6, -28] },
+  { kind: "sell", x: -23, z: -64, booth: [-27.6, -64] },
 ];
 const PAD_STYLE = {
-  sell: { color: 0x36d27a, text: "SELL" },
-  shop: { color: 0x3f8cff, text: "SHOP" },
-  egg:  { color: 0xb77bff, text: "EGGS" },
+  sell: { color: 0x22c55e, label: "CASH" },
+  shop: { color: 0x3b82f6, label: "GEAR SHOP" },
+  egg: { color: 0xa855f7, label: "EGGS" },
+  travel: { color: 0xf59e0b, label: "TRAVEL" },
 };
 
-const HALF_WIDTH = 30;
-const NODES_PER_ZONE = 12;
-const SPEED = 12;
-const JUMP = 11;
-const GRAVITY = 32;
-const REACH = 2.6;
-const SWING_TIME = 0.3;
-const RESPAWN_TIME = 6;
-const PAD_RADIUS = 3;
-const SAVE_KEY = "brainrot-simulator-save";
-const INK = 0x1d1433;
+const SPEED = 13;
+const JUMP = 12.5;
+const GRAVITY = 36;
+const REACH = 2.4;
+const SWING_TIME = 0.34;
+const RESPAWN_TIME = 5;
 
-// ---------- Save data ----------
+// =====================================================================
+// Save data
+// =====================================================================
 
+const SAVE_KEY = "sports-legends-save-v1";
 function defaultState() {
-  return { aura: 0, brainrot: 0, tool: 0, bag: 0, zones: 1, pets: {}, auto: false };
+  return { cash: 0, bagCount: 0, bagValue: 0, gear: 0, bag: 0, zones: 1, world: 0, rebirths: 0, pets: {}, auto: false, muted: false, champion: false };
 }
 function loadState() {
   let raw = null;
@@ -271,29 +438,45 @@ function loadState() {
 function saveState() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch { /* storage blocked: progress lasts this visit only */ }
 }
-
 const state = loadState();
 let dirty = false;
 
-const capacity = () => BAGS[state.bag].capacity;
+const capacity = () => bagCapacity(state.bag);
 function equippedPets() {
   return Object.entries(state.pets)
-    .flatMap(([id, count]) => Array(count).fill(PET_BY_ID[id]))
+    .flatMap(([id, count]) => Array(count).fill(PETS[id]))
     .sort((a, b) => b.bonus - a.bonus)
     .slice(0, PETS_EQUIPPED);
 }
-const multiplier = () => 1 + equippedPets().reduce((sum, pet) => sum + pet.bonus, 0);
+const petBoost = () => 1 + equippedPets().reduce((sum, pet) => sum + pet.bonus, 0);
+const cashBoost = () => petBoost() * rebirthBoost(state.rebirths);
+const zoneIndex = (w, k) => w * 3 + k;
+const openZonesHere = () => clamp(state.zones - state.world * 3, 1, 3);
+const worldUnlocked = w => state.zones > w * 3;
 
-function fmt(n) {
-  const units = ["", "K", "M", "B", "T"];
-  let i = 0;
-  while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
-  return (i === 0 ? Math.floor(n) : parseFloat(n.toFixed(n < 10 ? 2 : 1))) + units[i];
-}
-const pct = bonus => `+${Math.round(bonus * 100)}%`;
+// =====================================================================
+// Small helpers
+// =====================================================================
+
+const $ = id => document.getElementById(id);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const damp = (a, b, rate, dt) => lerp(a, b, 1 - Math.exp(-rate * dt));
+const smooth = t => t * t * (3 - 2 * t);
+const easeOutBack = t => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;
+const hex = c => `#${c.toString(16).padStart(6, "0")}`;
 
-// Seeded so the world layout is the same every visit.
+const SUFFIXES = ["", "K", "M", "B", "T", "Qd", "Qn", "Sx", "Sp"];
+function fmt(n) {
+  let i = 0;
+  while (n >= 1000 && i < SUFFIXES.length - 1) { n /= 1000; i++; }
+  if (i === 0) return String(Math.floor(n));
+  return parseFloat(n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0)) + SUFFIXES[i];
+}
+const money = n => `$${fmt(n)}`;
+const pct = bonus => `+${Math.round(bonus * 100)}%`;
+const boostText = n => `x${parseFloat(n.toFixed(2))}`;
+
 function mulberry32(seed) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
@@ -302,335 +485,1378 @@ function mulberry32(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const rand = mulberry32(1337);
 
-// ---------- Scene ----------
+// =====================================================================
+// Sound effects, synthesized with Web Audio (no files to download)
+// =====================================================================
 
-const canvas = document.getElementById("game");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+const sound = {
+  ctx: null,
+  master: null,
+  noiseBuffer: null,
+  unlock() {
+    if (!this.ctx) {
+      this.ctx = new AudioContext();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.5;
+      this.master.connect(this.ctx.destination);
+      const length = this.ctx.sampleRate * 2;
+      this.noiseBuffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
+      const data = this.noiseBuffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+    }
+    if (this.ctx.state === "suspended") this.ctx.resume();
+  },
+  envelope(node, { at, dur, vol, attack }) {
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(vol, at + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    node.connect(gain).connect(this.master);
+  },
+  tone(freq, { type = "sine", dur = 0.15, vol = 0.25, to = freq, at = 0, attack = 0.005 } = {}) {
+    const start = this.ctx.currentTime + at;
+    const osc = this.ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+    osc.frequency.exponentialRampToValueAtTime(to, start + dur);
+    this.envelope(osc, { at: start, dur, vol, attack });
+    osc.start(start);
+    osc.stop(start + dur + 0.05);
+  },
+  noise({ dur = 0.1, vol = 0.2, freq = 1200, to = freq, filter = "lowpass", q = 1, at = 0, attack = 0.005 } = {}) {
+    const start = this.ctx.currentTime + at;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    src.loop = true;
+    const biquad = this.ctx.createBiquadFilter();
+    biquad.type = filter;
+    biquad.Q.value = q;
+    biquad.frequency.setValueAtTime(freq, start);
+    biquad.frequency.exponentialRampToValueAtTime(to, start + dur);
+    src.connect(biquad);
+    this.envelope(biquad, { at: start, dur, vol, attack });
+    src.start(start, Math.random());
+    src.stop(start + dur + 0.05);
+  },
+  play(name, arg) {
+    if (!this.ctx || state.muted) return;
+    SFX[name](this, arg);
+  },
+};
 
-const SKY = 0x8fd6ff;
+const SFX = {
+  swing: s => s.noise({ dur: 0.16, vol: 0.1, freq: 400, to: 1800, filter: "bandpass", q: 2 }),
+  hit: s => {
+    s.tone(190, { dur: 0.13, vol: 0.45, to: 65 });
+    s.noise({ dur: 0.05, vol: 0.22, freq: 2600, filter: "highpass" });
+  },
+  collect: (s, i) => s.tone(900 + i * 110, { type: "triangle", dur: 0.08, vol: 0.1, to: 1300 + i * 110 }),
+  break: s => {
+    s.tone(520, { type: "triangle", dur: 0.2, vol: 0.3, to: 110 });
+    s.noise({ dur: 0.22, vol: 0.22, freq: 3200, to: 400 });
+  },
+  full: s => {
+    s.tone(240, { type: "square", dur: 0.1, vol: 0.06 });
+    s.tone(180, { type: "square", dur: 0.16, vol: 0.06, at: 0.11 });
+  },
+  sell: s => {
+    s.tone(1046, { type: "square", dur: 0.08, vol: 0.08 });
+    s.tone(1568, { type: "square", dur: 0.32, vol: 0.1, at: 0.08 });
+    s.noise({ dur: 0.4, vol: 0.12, freq: 7000, filter: "highpass", at: 0.08 });
+  },
+  buy: s => [523, 659, 784, 1046].forEach((f, i) => s.tone(f, { type: "triangle", dur: 0.18, vol: 0.16, at: i * 0.06 })),
+  deny: s => s.tone(140, { type: "sawtooth", dur: 0.2, vol: 0.1, to: 110 }),
+  jump: s => s.tone(260, { dur: 0.16, vol: 0.16, to: 560 }),
+  land: s => s.noise({ dur: 0.1, vol: 0.2, freq: 500, to: 140 }),
+  step: s => s.noise({ dur: 0.04, vol: 0.05, freq: 1300, to: 500 }),
+  click: s => s.tone(720, { type: "triangle", dur: 0.04, vol: 0.08 }),
+  tick: (s, i) => s.tone(700 + i * 45, { type: "triangle", dur: 0.06, vol: 0.14 }),
+  crack: s => {
+    s.noise({ dur: 0.32, vol: 0.4, freq: 4200, to: 600, filter: "bandpass" });
+    s.tone(320, { dur: 0.25, vol: 0.28, to: 80 });
+  },
+  reveal: (s, rarity) => {
+    [523, 659, 784, 1046, 1318, 1568, 2093].slice(0, 3 + rarity)
+      .forEach((f, i) => s.tone(f, { type: rarity >= 3 ? "sawtooth" : "triangle", dur: 0.3, vol: 0.11, at: 0.05 + i * 0.08 }));
+  },
+  cheer: s => {
+    s.noise({ dur: 1.8, vol: 0.2, freq: 900, to: 1400, filter: "bandpass", q: 0.7, attack: 0.35 });
+    s.noise({ dur: 1.4, vol: 0.08, freq: 2500, to: 3200, filter: "bandpass", q: 1.5, attack: 0.25, at: 0.1 });
+  },
+  unlock: s => {
+    s.noise({ dur: 0.6, vol: 0.18, freq: 300, to: 3000, filter: "bandpass", q: 1.5 });
+    [392, 523, 659, 784].forEach((f, i) => s.tone(f, { type: "sawtooth", dur: 0.55, vol: 0.07, at: 0.25 + i * 0.07 }));
+  },
+  rebirth: s => {
+    s.tone(110, { type: "sawtooth", dur: 1.2, vol: 0.12, to: 880 });
+    [523, 659, 784, 1046].forEach((f, i) => s.tone(f, { type: "triangle", dur: 1, vol: 0.12, at: 0.6 + i * 0.05 }));
+  },
+  travel: s => s.noise({ dur: 1.1, vol: 0.25, freq: 200, to: 4000, filter: "bandpass", q: 3 }),
+  champion: s => {
+    [523, 523, 784, 1046, 784, 1046, 1318].forEach((f, i) => s.tone(f, { type: "sawtooth", dur: 0.4, vol: 0.09, at: i * 0.16 }));
+  },
+};
+
+// =====================================================================
+// Renderer, lights, sky
+// =====================================================================
+
+const canvas = $("game");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(SKY);
-scene.fog = new THREE.Fog(SKY, 70, 170);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x6b8f4e, 2.2));
-const sun = new THREE.DirectionalLight(0xfff4dd, 2.2);
-sun.position.set(40, 80, 30);
-scene.add(sun);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.fog = new THREE.Fog(0xc4e6ff, 110, 300);
 
-const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 900);
+const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x3f4a5a, 0.55);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 1, far: 170 });
+sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.04;
+scene.add(sun, sun.target);
+const SUN_OFFSET = new THREE.Vector3(32, 62, 26);
+
+const SKY_SHADER = {
+  uniforms: { top: { value: new THREE.Color() }, low: { value: new THREE.Color() } },
+  vertexShader: `
+    varying vec3 vDir;
+    void main() {
+      vDir = normalize(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    uniform vec3 top;
+    uniform vec3 low;
+    varying vec3 vDir;
+    void main() {
+      float h = clamp(vDir.y * 1.5, 0.0, 1.0);
+      gl_FragColor = vec4(mix(low, top, pow(h, 0.65)), 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+};
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(500, 32, 16),
+  new THREE.ShaderMaterial({ ...SKY_SHADER, side: THREE.BackSide, depthWrite: false, fog: false }),
+);
+scene.add(sky);
+
+const clouds = [];
+{
+  const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.35 });
+  const rand = mulberry32(7);
+  for (let i = 0; i < 12; i++) {
+    const cloud = new THREE.Group();
+    for (let j = 0; j < 5; j++) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), cloudMat);
+      puff.position.set((j - 2) * 5 + rand() * 3, rand() * 2.5, rand() * 4);
+      puff.scale.setScalar(4 + rand() * 4);
+      cloud.add(puff);
+    }
+    const merged = mergeByMaterial(cloud);
+    merged.traverse(o => { o.castShadow = false; o.receiveShadow = false; });
+    merged.position.set(-250 + rand() * 500, 70 + rand() * 40, -260 + rand() * 360);
+    merged.scale.y = 0.55;
+    clouds.push(merged);
+    scene.add(merged);
+  }
+}
+
 function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
 }
 
-const materials = new Map();
-function mat(color) {
-  if (!materials.has(color)) materials.set(color, new THREE.MeshLambertMaterial({ color }));
-  return materials.get(color);
-}
-function box(w, h, d, color) {
-  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
-}
-function glowMat(color, strength) {
-  return new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: strength });
-}
+// =====================================================================
+// Materials, shared geometry, textures
+// =====================================================================
 
-// Floating sign text, drawn once into a canvas texture.
-function label(text, fill, width) {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 128;
-  const g = c.getContext("2d");
-  let size = 76;
-  do { size -= 4; g.font = `${size}px "Lilita One", "Arial Black", sans-serif`; } while (g.measureText(text).width > 460);
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.lineJoin = "round";
-  g.lineWidth = 16;
-  g.strokeStyle = "#1d1433";
-  g.strokeText(text, 256, 68);
-  g.fillStyle = fill;
-  g.fillText(text, 256, 68);
-  const map = new THREE.CanvasTexture(c);
-  map.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthWrite: false }));
-  sprite.scale.set(width, width / 4, 1);
-  return sprite;
+const matCache = new Map();
+const flatCache = new Map();
+function flat(color) {
+  if (!flatCache.has(color)) flatCache.set(color, new THREE.MeshLambertMaterial({ color }));
+  return flatCache.get(color);
+}
+function std(color, opts = {}) {
+  const key = `${color}|${JSON.stringify(opts)}`;
+  if (!matCache.has(key)) {
+    matCache.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0, envMapIntensity: 0.7, ...opts }));
+  }
+  return matCache.get(key);
+}
+function finishMat(finish) {
+  const { color, ...rest } = FINISH[finish];
+  return std(color, rest);
 }
 
-function tileMaterial(length) {
-  const c = document.createElement("canvas");
-  c.width = c.height = 64;
-  const g = c.getContext("2d");
-  g.fillStyle = "#f4f8fb";
-  g.fillRect(0, 0, 64, 64);
-  g.fillStyle = "#9fd3f0";
-  g.fillRect(0, 0, 32, 32);
-  g.fillRect(32, 32, 32, 32);
-  const map = new THREE.CanvasTexture(c);
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  map.magFilter = THREE.NearestFilter;
-  map.repeat.set(HALF_WIDTH / 2, length / 4);
-  return new THREE.MeshLambertMaterial({ map });
+const GEO = {
+  sphere: new THREE.SphereGeometry(1, 20, 14),
+  sphereSmall: new THREE.SphereGeometry(1, 10, 8),
+  ball: new THREE.SphereGeometry(1, 16, 12),
+  cone: new THREE.ConeGeometry(1, 1, 18),
+  cyl: new THREE.CylinderGeometry(1, 1, 1, 24),
+  box: new THREE.BoxGeometry(1, 1, 1),
+  torus: new THREE.TorusGeometry(1, 0.1, 10, 32),
+  football: new THREE.SphereGeometry(1, 16, 12).rotateZ(Math.PI / 2).scale(1, 0.62, 0.62),
+  puck: new THREE.CylinderGeometry(1, 1, 0.42, 32),
+};
+
+// Adds a mesh to a parent. s is a uniform scale or [x, y, z]; r is a rotation [x, y, z].
+function part(parent, geo, mat, p = [0, 0, 0], s = 1, r = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(...p);
+  if (Array.isArray(s)) mesh.scale.set(...s);
+  else mesh.scale.setScalar(s);
+  mesh.rotation.set(...r);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
 }
 
-const zoneAt = z => ZONES.findIndex(zone => z <= zone.zStart && z > zone.zEnd);
-
-// ---------- World ----------
-
-const gates = [];
-let eggMesh;
-
-function buildWorld() {
-  const outside = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), mat(0x4f9e3c));
-  outside.rotation.x = -Math.PI / 2;
-  outside.position.y = -0.05;
-  scene.add(outside);
-
-  ZONES.forEach((zone, i) => {
-    const length = zone.zStart - zone.zEnd;
-    const midZ = (zone.zStart + zone.zEnd) / 2;
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(HALF_WIDTH * 2, length),
-      zone.ground === null ? tileMaterial(length) : mat(zone.ground),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.z = midZ;
-    scene.add(ground);
-    for (const side of [-1, 1]) {
-      const wall = box(1, 2, length, zone.wall);
-      wall.position.set(side * (HALF_WIDTH + 0.5), 1, midZ);
-      scene.add(wall);
-    }
-    if (i >= state.zones) gates[i] = buildGate(zone);
+// Bakes a static model into one mesh per material, so it costs a few draw calls instead of dozens.
+function mergeByMaterial(group) {
+  group.updateMatrixWorld(true);
+  const buckets = new Map();
+  group.traverse(obj => {
+    if (!obj.isMesh) return;
+    const geo = (obj.geometry.index ? obj.geometry.toNonIndexed() : obj.geometry.clone()).applyMatrix4(obj.matrixWorld);
+    if (!buckets.has(obj.material)) buckets.set(obj.material, []);
+    buckets.get(obj.material).push(geo);
   });
-  for (const z of [ZONES[0].zStart + 0.5, ZONES.at(-1).zEnd - 0.5]) {
-    const wall = box(HALF_WIDTH * 2 + 2, 2, 1, ZONES[0].wall);
-    wall.position.set(0, 1, z);
-    scene.add(wall);
+  const out = new THREE.Group();
+  for (const [material, geos] of buckets) {
+    const mesh = new THREE.Mesh(mergeGeometries(geos), material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    out.add(mesh);
+    geos.forEach(g => g.dispose());
   }
-
-  const trunkGeo = new THREE.CylinderGeometry(0.4, 0.5, 2, 8);
-  const leafGeo = new THREE.ConeGeometry(2.2, 5, 8);
-  for (let z = 28; z > -100; z -= 7) {
-    for (const side of [-1, 1]) {
-      const tree = new THREE.Group();
-      const trunk = new THREE.Mesh(trunkGeo, mat(0x7a4a24));
-      trunk.position.y = 1;
-      const leaves = new THREE.Mesh(leafGeo, mat(ZONES[zoneAt(z)].leaves));
-      leaves.position.y = 4.4;
-      tree.add(trunk, leaves);
-      tree.position.set(side * (HALF_WIDTH + 4 + rand() * 8), 0, z + rand() * 4);
-      tree.scale.setScalar(0.8 + rand() * 0.6);
-      scene.add(tree);
-    }
-  }
-
-  for (const pad of PADS) {
-    const style = PAD_STYLE[pad.kind];
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(PAD_RADIUS, PAD_RADIUS, 0.25, 40), glowMat(style.color, 0.35));
-    disc.position.set(pad.x, 0.12, pad.z);
-    scene.add(disc);
-    const sign = label(style.text, "#ffffff", 7);
-    sign.position.set(pad.x, pad.kind === "egg" ? 7.4 : 4.2, pad.z);
-    scene.add(sign);
-    if (pad.kind === "egg") {
-      eggMesh = new THREE.Mesh(new THREE.SphereGeometry(1.3, 24, 16), glowMat(0xf3e9ff, 0.2));
-      eggMesh.scale.y = 1.3;
-      eggMesh.position.set(pad.x, 4.4, pad.z);
-      scene.add(eggMesh);
-    }
-  }
+  return out;
 }
 
-function buildGate(zone) {
-  const gate = new THREE.Group();
-  const wall = new THREE.Mesh(
-    new THREE.BoxGeometry(HALF_WIDTH * 2, 7, 0.6),
-    new THREE.MeshLambertMaterial({ color: 0xff5577, transparent: true, opacity: 0.55 }),
-  );
-  wall.position.y = 3.5;
-  const name = label(zone.name, "#ffffff", 13);
-  name.position.y = 10.4;
-  const price = label(`${fmt(zone.cost)} Aura`, "#ffd23f", 9);
-  price.position.y = 7.8;
-  gate.add(wall, name, price);
-  gate.position.z = zone.zStart;
-  gate.visible = ZONES.indexOf(zone) === state.zones;
-  scene.add(gate);
-  return gate;
+function canvasTexture(w, h, draw) {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  draw(c.getContext("2d"), w, h);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }
 
-// ---------- Brainrot nodes ----------
+const BALL_TEXTURES = {
+  soccer: () => canvasTexture(512, 256, (g, w, h) => {
+    g.fillStyle = "#f8fafc";
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = "#111827";
+    g.fillRect(0, 0, w, h * 0.07);
+    g.fillRect(0, h * 0.93, w, h * 0.07);
+    const pent = (x, y, r) => {
+      g.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+        g.lineTo(x + Math.cos(a) * r * 1.15, y + Math.sin(a) * r);
+      }
+      g.fill();
+    };
+    for (let i = 0; i <= 5; i++) {
+      pent((i / 5) * w, h * 0.35, h * 0.1);
+      pent(((i + 0.5) / 5) * w, h * 0.65, h * 0.1);
+    }
+    g.strokeStyle = "rgba(17,24,39,0.35)";
+    g.lineWidth = 2;
+    for (let i = 0; i < 10; i++) {
+      g.beginPath();
+      g.moveTo((i / 10) * w, h * 0.07);
+      g.lineTo(((i + 0.5) / 10) * w, h * 0.5);
+      g.lineTo((i / 10) * w, h * 0.93);
+      g.stroke();
+    }
+  }),
+  basketball: () => canvasTexture(512, 256, (g, w, h) => {
+    g.fillStyle = "#e3702b";
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2500; i++) {
+      g.fillStyle = `rgba(120,40,0,${Math.random() * 0.25})`;
+      g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+    g.strokeStyle = "#1c1209";
+    g.lineWidth = 5;
+    g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+    for (const x of [0, w / 2, w]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    for (const x0 of [w / 4, (3 * w) / 4]) {
+      g.beginPath();
+      for (let y = 0; y <= h; y += 4) g.lineTo(x0 + Math.sin((y / h) * Math.PI) * w * 0.09 * (x0 < w / 2 ? 1 : -1), y);
+      g.stroke();
+    }
+  }),
+  football: () => canvasTexture(512, 256, (g, w, h) => {
+    g.fillStyle = "#7a3b17";
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2500; i++) {
+      g.fillStyle = `rgba(30,10,0,${Math.random() * 0.25})`;
+      g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+    g.fillStyle = "#f8fafc";
+    g.fillRect(0, h * 0.2, w, h * 0.035);
+    g.fillRect(0, h * 0.765, w, h * 0.035);
+    g.fillRect(w * 0.245, h * 0.36, w * 0.012, h * 0.28);
+    for (let y = h * 0.38; y < h * 0.63; y += h * 0.04) g.fillRect(w * 0.225, y, w * 0.05, h * 0.014);
+  }),
+  baseball: () => canvasTexture(512, 256, (g, w, h) => {
+    g.fillStyle = "#f5f5f0";
+    g.fillRect(0, 0, w, h);
+    g.strokeStyle = "#dc2626";
+    g.lineWidth = 3;
+    const seam = x => h / 2 + Math.sin((x / w) * Math.PI * 4) * h * 0.26;
+    for (const offset of [-7, 7]) {
+      for (let x = 0; x < w; x += 9) {
+        const y = seam(x) + offset;
+        g.beginPath(); g.moveTo(x - 4, y - 4); g.lineTo(x + 4, y + 4); g.stroke();
+      }
+    }
+  }),
+  puck: () => canvasTexture(256, 256, (g, w, h) => {
+    g.fillStyle = "#15171c";
+    g.fillRect(0, 0, w, h);
+    g.strokeStyle = "rgba(255,255,255,0.15)";
+    g.lineWidth = 6;
+    g.beginPath(); g.arc(w / 2, h / 2, w * 0.3, 0, Math.PI * 2); g.stroke();
+  }),
+};
+const ballMatCache = {};
+function ballMat(kind) {
+  ballMatCache[kind] ??= new THREE.MeshStandardMaterial({ map: BALL_TEXTURES[kind](), roughness: kind === "puck" ? 0.35 : 0.45, envMapIntensity: 0.7 });
+  return ballMatCache[kind];
+}
+function addBall(parent, kind, p, r, rand) {
+  if (kind === "puck") return part(parent, GEO.puck, ballMat(kind), p, [r, r, r], [0, rand() * 6, 0]);
+  const geo = kind === "football" ? GEO.football : r > 1 ? GEO.sphere : GEO.ball;
+  return part(parent, geo, ballMat(kind), p, r, [rand() * 6, rand() * 6, rand() * 6]);
+}
 
-const nodes = [];
-const rockGeo = new THREE.DodecahedronGeometry(1, 0);
-const gemGeo = new THREE.OctahedronGeometry(0.6, 0);
-const bowlGeo = new THREE.CylinderGeometry(0.9, 0.6, 1, 16);
-const rimGeo = new THREE.TorusGeometry(0.82, 0.16, 8, 20);
-const waterGeo = new THREE.CircleGeometry(0.7, 20);
-const crystalMat = glowMat(0x5ad1ff, 0.45);
+// =====================================================================
+// Models
+// =====================================================================
 
-function nodeModel(type) {
+function nodeModel(def, kind, rand) {
   const g = new THREE.Group();
-  if (type === "rock") {
-    const rock = new THREE.Mesh(rockGeo, mat(0xc7b3d6));
-    rock.scale.set(1.3, 1, 1.15);
-    rock.position.y = 0.8;
-    const gem = new THREE.Mesh(gemGeo, glowMat(0xff6fb0, 0.4));
-    gem.scale.setScalar(0.6);
-    gem.position.set(0.3, 1.75, 0.2);
-    g.add(rock, gem);
-  }
-  if (type === "crystal") {
-    for (const [x, z, h, tilt] of [[0, 0, 2.6, 0], [0.6, 0.3, 1.7, 0.35], [-0.55, 0.2, 1.9, -0.3], [0.1, -0.55, 1.5, 0.2]]) {
-      const shard = new THREE.Mesh(gemGeo, crystalMat);
-      shard.scale.set(0.9, h, 0.9);
-      shard.position.set(x, h * 0.55, z);
-      shard.rotation.z = tilt;
-      g.add(shard);
+  const ball = def.ball;
+  const accent = std(def.accent, { roughness: 0.35, metalness: 0.3 });
+  if (kind === "pile") {
+    if (ball === "puck") {
+      for (const [x, z, n] of [[-0.55, -0.3, 5], [0.55, -0.3, 4], [0, 0.55, 6]]) {
+        for (let i = 0; i < n; i++) addBall(g, ball, [x + (rand() - 0.5) * 0.08, 0.1 + i * 0.19, z], 0.42, rand);
+      }
+    } else {
+      const r = 0.44;
+      for (const [x, z] of [[-0.46, -0.46], [0.46, -0.46], [-0.46, 0.46], [0.46, 0.46]]) addBall(g, ball, [x, r, z], r, rand);
+      addBall(g, ball, [0, r + 0.64, 0], r, rand);
     }
   }
-  if (type === "toilet") {
-    const gold = mat(0xffc93c);
-    const bowl = new THREE.Mesh(bowlGeo, gold);
-    bowl.position.y = 0.5;
-    const rim = new THREE.Mesh(rimGeo, gold);
-    rim.rotation.x = Math.PI / 2;
-    rim.position.y = 1.02;
-    const water = new THREE.Mesh(waterGeo, mat(0x6fd3ff));
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = 0.95;
-    const tank = box(1.5, 1.4, 0.55, 0xffc93c);
-    tank.position.set(0, 1.3, -0.85);
-    g.add(bowl, rim, water, tank);
+  if (kind === "rack") {
+    const metal = std(0xc0c6d0, { metalness: 0.85, roughness: 0.3 });
+    for (const y of [0.45, 1.25]) part(g, GEO.box, metal, [0, y, 0], [2.5, 0.07, 0.95]);
+    for (const x of [-1.2, 1.2]) for (const z of [-0.42, 0.42]) {
+      part(g, GEO.cyl, metal, [x, 0.95, z], [0.05, 1.7, 0.05]);
+      part(g, GEO.cyl, std(0x111827, { roughness: 0.8 }), [x, 0.1, z], [0.1, 0.06, 0.1], [0, 0, Math.PI / 2]);
+    }
+    part(g, GEO.box, accent, [0, 1.75, 0], [2.6, 0.12, 1.05]);
+    for (const y of [0.45, 1.25]) for (const x of [-0.78, 0, 0.78]) {
+      if (ball === "puck") for (let i = 0; i < 3; i++) addBall(g, ball, [x, y + 0.13 + i * 0.18, 0], 0.32, rand);
+      else addBall(g, ball, [x, y + 0.38, 0], 0.34, rand);
+    }
+  }
+  if (kind === "giant") {
+    part(g, GEO.cyl, std(0x1f2937, { roughness: 0.4, metalness: 0.5 }), [0, 0.15, 0], [1.1, 0.3, 1.1]);
+    part(g, GEO.torus, std(0xfbbf24, { metalness: 1, roughness: 0.2, emissive: 0xb45309, emissiveIntensity: 0.4 }), [0, 0.32, 0], [1.1, 1.1, 1.6], [Math.PI / 2, 0, 0]);
+    if (ball === "puck") addBall(g, ball, [0, 0.62, 0], 1.25, rand);
+    else addBall(g, ball, [0, 1.55, 0], 1.25, rand);
+  }
+  return mergeByMaterial(g);
+}
+
+function gearModel(gear) {
+  const g = new THREE.Group();
+  const m = finishMat(gear.finish);
+  const grip = std(0x111827, { roughness: 0.85 });
+  const tape = std(0xf8fafc, { roughness: 0.7 });
+  switch (gear.type) {
+    case "bat":
+      part(g, GEO.cyl, grip, [0, 0.12, 0], [0.065, 0.5, 0.065]);
+      part(g, GEO.cyl, m, [0, -0.15, 0], [0.09, 0.06, 0.09]);
+      part(g, new THREE.CylinderGeometry(0.17, 0.065, 1.15, 24), m, [0, 0.93, 0]);
+      part(g, GEO.sphere, m, [0, 1.5, 0], [0.17, 0.06, 0.17]);
+      break;
+    case "racket":
+      part(g, GEO.cyl, grip, [0, 0.2, 0], [0.06, 0.5, 0.06]);
+      part(g, GEO.cyl, m, [0, 0.6, 0], [0.04, 0.35, 0.04]);
+      part(g, GEO.torus, m, [0, 1.15, 0], [0.34, 0.46, 0.5]);
+      for (let i = -3; i <= 3; i++) {
+        part(g, GEO.box, tape, [i * 0.08, 1.15, 0], [0.012, 0.86 * Math.sqrt(1 - (i / 4.2) ** 2), 0.012]);
+        part(g, GEO.box, tape, [0, 1.15 + i * 0.11, 0], [0.64 * Math.sqrt(1 - (i / 4.2) ** 2), 0.012, 0.012]);
+      }
+      break;
+    case "stick":
+      part(g, GEO.cyl, grip, [0, 0.1, 0], [0.06, 0.4, 0.06]);
+      part(g, GEO.box, m, [0, 0.85, 0], [0.09, 1.5, 0.06]);
+      part(g, new RoundedBoxGeometry(0.12, 0.2, 0.6, 2, 0.04), m, [0, 1.6, 0.25], 1, [0.2, 0, 0]);
+      part(g, GEO.box, tape, [0, 1.6, 0.25], [0.125, 0.12, 0.3], [0.2, 0, 0]);
+      break;
+    case "club":
+      part(g, GEO.cyl, grip, [0, 0.12, 0], [0.055, 0.45, 0.055]);
+      part(g, GEO.cyl, m, [0, 0.95, 0], [0.025, 1.3, 0.025]);
+      part(g, new RoundedBoxGeometry(0.2, 0.16, 0.42, 2, 0.05), m, [0, 1.62, 0.13], 1, [0.35, 0, 0]);
+      break;
+    case "cricket":
+      part(g, GEO.cyl, grip, [0, 0.15, 0], [0.06, 0.55, 0.06]);
+      part(g, new RoundedBoxGeometry(0.34, 1.05, 0.13, 2, 0.04), m, [0, 0.98, 0]);
+      break;
   }
   return g;
 }
 
-function placeNodes() {
-  ZONES.forEach((zone, zoneIndex) => {
-    const type = NODE_TYPES[zone.node];
-    const zTop = zoneIndex === 0 ? 4 : zone.zStart - 4;
-    const zBottom = zone.zEnd + 3;
-    let placed = 0;
-    for (let tries = 0; placed < NODES_PER_ZONE; tries++) {
-      if (tries > 2000) throw new Error(`Could not fit ${NODES_PER_ZONE} nodes in ${zone.name}`);
-      const x = (rand() * 2 - 1) * (HALF_WIDTH - 4);
-      const z = zBottom + rand() * (zTop - zBottom);
-      if (nodes.some(n => Math.hypot(n.x - x, n.z - z) < 5.5)) continue;
-      if (PADS.some(p => Math.hypot(p.x - x, p.z - z) < 7)) continue;
-      const group = nodeModel(zone.node);
-      group.position.set(x, 0, z);
-      group.rotation.y = rand() * Math.PI * 2;
-      scene.add(group);
-      nodes.push({ zone: zoneIndex, type: zone.node, x, z, radius: type.radius, hitsLeft: type.hits, respawn: 0, punch: 0, grow: 1, group });
-      placed++;
+function bagModel(tier) {
+  const g = new THREE.Group();
+  const color = BAG_COLORS[tier];
+  const shiny = tier >= 10;
+  const body = std(color, { roughness: shiny ? 0.25 : 0.7, metalness: shiny ? 0.7 : 0 });
+  const trim = std(0x111827, { roughness: 0.6 });
+  const size = 0.55 + tier * 0.035;
+  part(g, new RoundedBoxGeometry(0.75, 0.85, 0.42, 3, 0.14), body, [0, 0, 0], size);
+  part(g, new RoundedBoxGeometry(0.55, 0.38, 0.16, 2, 0.07), body, [0, -0.16 * size, 0.26 * size], size);
+  part(g, GEO.box, trim, [0, -0.02 * size, 0.345 * size], [0.42 * size, 0.035 * size, 0.02]);
+  for (const side of [-1, 1]) part(g, GEO.box, trim, [side * 0.22 * size, 0.05 * size, -0.25 * size], [0.07 * size, 0.85 * size, 0.04]);
+  if (tier >= 12) part(g, GEO.sphere, std(0xffffff, { emissive: color, emissiveIntensity: 1.2 }), [0, 0.5 * size, 0.1], 0.08);
+  return g;
+}
+
+function petModel(pet) {
+  const g = new THREE.Group();
+  const body = std(pet.body, { roughness: 0.55 });
+  const belly = std(pet.belly, { roughness: 0.6 });
+  const dark = std(0x1f2937, { roughness: 0.35 });
+  const white = std(0xffffff, { roughness: 0.25 });
+  const pink = std(0xf9a8d4, { roughness: 0.5 });
+  const orange = std(0xf59e0b, { roughness: 0.5 });
+  const accent = std(WORLDS[pet.world].accent, { roughness: 0.4 });
+  const S = GEO.sphere;
+  const C = GEO.cone;
+  const sp = pet.species;
+  const headY = sp === "penguin" || sp === "owl" ? 0.95 : 1.0;
+  const limbs = sp === "panda" ? dark : body;
+
+  part(g, S, body, [0, 0.45, 0], [0.42, 0.42, 0.4]);
+  part(g, S, belly, [0, 0.43, 0.15], sp === "penguin" ? [0.33, 0.38, 0.3] : [0.3, 0.3, 0.27]);
+  part(g, S, body, [0, headY, 0.04], [0.38, 0.35, 0.35]);
+  const eye = sp === "owl" ? 1.35 : 1;
+  for (const side of [-1, 1]) {
+    if (sp === "panda") part(g, S, dark, [side * 0.14, headY + 0.03, 0.31], [0.11, 0.13, 0.06], [0, 0, side * 0.4]);
+    if (sp === "owl") part(g, S, belly, [side * 0.14, headY + 0.03, 0.27], [0.15, 0.16, 0.1]);
+    part(g, GEO.sphereSmall, white, [side * 0.14, headY + 0.05, 0.33], [0.085 * eye, 0.1 * eye, 0.05]);
+    part(g, GEO.sphereSmall, dark, [side * 0.14, headY + 0.04, 0.37], [0.05 * eye, 0.065 * eye, 0.03]);
+    part(g, GEO.sphereSmall, white, [side * 0.12, headY + 0.08, 0.395], 0.018);
+    part(g, S, sp === "penguin" ? orange : limbs, [side * 0.2, 0.07, 0.12], [0.13, 0.08, 0.17]);
+    part(g, S, limbs, [side * 0.38, 0.5, 0.05], [0.1, 0.2, 0.1], [0, 0, side * 0.5]);
+  }
+  for (const side of [-1, 1]) {
+    switch (sp) {
+      case "dog":
+        part(g, S, dark, [side * 0.33, headY, 0], [0.09, 0.21, 0.13], [0, 0, side * 0.35]);
+        break;
+      case "cat":
+        part(g, C, body, [side * 0.2, headY + 0.33, 0], [0.12, 0.22, 0.1], [0, 0, side * -0.25]);
+        part(g, C, pink, [side * 0.2, headY + 0.31, 0.04], [0.06, 0.13, 0.04], [0, 0, side * -0.25]);
+        break;
+      case "bunny":
+        part(g, S, body, [side * 0.12, headY + 0.47, -0.02], [0.08, 0.3, 0.06], [0, 0, side * -0.12]);
+        part(g, S, pink, [side * 0.12, headY + 0.47, 0.03], [0.045, 0.22, 0.03], [0, 0, side * -0.12]);
+        break;
+      case "fox":
+        part(g, C, body, [side * 0.21, headY + 0.36, 0], [0.15, 0.3, 0.1], [0, 0, side * -0.3]);
+        part(g, C, dark, [side * 0.26, headY + 0.48, 0], [0.06, 0.1, 0.05], [0, 0, side * -0.3]);
+        break;
+      case "bear":
+      case "panda":
+        part(g, S, limbs, [side * 0.27, headY + 0.27, 0], 0.11);
+        break;
+      case "owl":
+        part(g, C, body, [side * 0.22, headY + 0.32, 0], [0.07, 0.16, 0.07], [0, 0, side * -0.4]);
+        break;
+      case "dragon":
+        part(g, C, std(0xfef3c7, { roughness: 0.4 }), [side * 0.17, headY + 0.35, -0.05], [0.06, 0.24, 0.06], [-0.3, 0, side * -0.2]);
+        part(g, S, belly, [side * 0.4, 0.85, -0.25], [0.05, 0.32, 0.34], [0.3, side * 0.5, side * 0.3]);
+        break;
+    }
+  }
+  switch (sp) {
+    case "dog":
+      part(g, S, belly, [0, headY - 0.08, 0.3], [0.16, 0.12, 0.14]);
+      part(g, S, dark, [0, headY - 0.03, 0.43], [0.06, 0.045, 0.04]);
+      part(g, S, body, [0, 0.58, -0.4], [0.07, 0.07, 0.2], [-0.8, 0, 0]);
+      break;
+    case "cat":
+      part(g, S, pink, [0, headY - 0.04, 0.39], [0.04, 0.03, 0.03]);
+      part(g, GEO.cyl, body, [0, 0.72, -0.43], [0.05, 0.62, 0.05], [-0.45, 0, 0]);
+      break;
+    case "bunny":
+      part(g, S, pink, [0, headY - 0.03, 0.39], [0.04, 0.03, 0.03]);
+      part(g, S, white, [0, 0.38, -0.4], 0.13);
+      break;
+    case "fox":
+      part(g, C, belly, [0, headY - 0.07, 0.36], [0.13, 0.24, 0.12], [Math.PI / 2, 0, 0]);
+      part(g, S, dark, [0, headY - 0.07, 0.48], 0.04);
+      part(g, S, body, [0, 0.62, -0.5], [0.16, 0.16, 0.34], [-0.6, 0, 0]);
+      part(g, S, white, [0, 0.82, -0.74], 0.11);
+      break;
+    case "bear":
+    case "panda":
+      part(g, S, sp === "panda" ? white : belly, [0, headY - 0.09, 0.3], [0.15, 0.11, 0.1]);
+      part(g, S, dark, [0, headY - 0.05, 0.39], [0.05, 0.035, 0.03]);
+      break;
+    case "penguin":
+      part(g, C, orange, [0, headY - 0.06, 0.4], [0.07, 0.15, 0.07], [Math.PI / 2, 0, 0]);
+      break;
+    case "owl":
+      part(g, C, orange, [0, headY - 0.08, 0.37], [0.05, 0.12, 0.05], [Math.PI / 2 + 0.5, 0, 0]);
+      break;
+    case "dragon":
+      part(g, S, body, [0, headY - 0.08, 0.3], [0.17, 0.13, 0.15]);
+      for (const side of [-1, 1]) part(g, GEO.sphereSmall, dark, [side * 0.06, headY - 0.04, 0.44], 0.025);
+      for (let i = 0; i < 3; i++) part(g, C, belly, [0, 0.82 - i * 0.18, -0.3 - i * 0.07], [0.06, 0.14, 0.06], [-0.5, 0, 0]);
+      part(g, C, body, [0, 0.32, -0.6], [0.12, 0.45, 0.12], [-Math.PI / 2 + 0.3, 0, 0]);
+      break;
+  }
+  part(g, GEO.torus, accent, [0, headY + 0.13, 0.04], [0.37, 0.37, 0.4], [Math.PI / 2, 0, 0]);
+  if (pet.rarity === 4) {
+    const gold = std(0xfbbf24, { metalness: 1, roughness: 0.2, emissive: 0xb45309, emissiveIntensity: 0.4 });
+    part(g, GEO.cyl, gold, [0, headY + 0.42, 0.02], [0.17, 0.1, 0.17]);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      part(g, C, gold, [Math.sin(a) * 0.15, headY + 0.53, 0.02 + Math.cos(a) * 0.15], [0.05, 0.13, 0.05]);
+    }
+  }
+  return mergeByMaterial(g);
+}
+const petTemplates = new Map();
+const petTemplate = pet => {
+  if (!petTemplates.has(pet.id)) petTemplates.set(pet.id, petModel(pet));
+  return petTemplates.get(pet.id);
+};
+
+function eggProfile(from, to) {
+  const pts = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = from + ((to - from) * i) / 20;
+    pts.push(new THREE.Vector2(Math.max(0.0001, Math.sin(t) * (0.46 + 0.05 * Math.cos(t))), -Math.cos(t) * 0.62));
+  }
+  return pts;
+}
+const EGG_SPLIT = Math.PI * 0.56;
+const EGG_GEO = {
+  bottom: new THREE.LatheGeometry(eggProfile(0, EGG_SPLIT), 40),
+  top: new THREE.LatheGeometry(eggProfile(EGG_SPLIT, Math.PI), 40),
+};
+const eggTextures = {};
+const eggMaterials = {};
+function eggTexture(w) {
+  const kind = WORLDS[w].ball;
+  eggTextures[w] ??= kind === "puck"
+    ? canvasTexture(256, 256, (g, wd, ht) => {
+      g.fillStyle = "#bae6fd";
+      g.fillRect(0, 0, wd, ht);
+      g.strokeStyle = "#ffffff";
+      g.lineWidth = 4;
+      for (let i = 0; i < 14; i++) {
+        const x = Math.random() * wd, y = Math.random() * ht, r = 8 + Math.random() * 10;
+        for (let k = 0; k < 3; k++) {
+          const a = (k / 3) * Math.PI;
+          g.beginPath(); g.moveTo(x - Math.cos(a) * r, y - Math.sin(a) * r); g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); g.stroke();
+        }
+      }
+    })
+    : BALL_TEXTURES[kind]();
+  return eggTextures[w];
+}
+// Egg as two halves so it can crack open.
+function eggModel(w, ownMaterial) {
+  const material = ownMaterial
+    ? new THREE.MeshStandardMaterial({ map: eggTexture(w), roughness: 0.35, transparent: true, envMapIntensity: 0.8 })
+    : (eggMaterials[w] ??= new THREE.MeshStandardMaterial({ map: eggTexture(w), roughness: 0.35, envMapIntensity: 0.8 }));
+  const group = new THREE.Group();
+  const bottom = part(group, EGG_GEO.bottom, material, [0, 0.62, 0]);
+  const top = part(group, EGG_GEO.top, material, [0, 0.62, 0]);
+  return { group, top, bottom, material };
+}
+
+// Text drawn onto a canvas, for signs and floating labels.
+function signTexture(lines, { width = 1024, height = 256, accent = 0x3b82f6 } = {}) {
+  return canvasTexture(width, height, (g, w, h) => {
+    g.fillStyle = "#0a1430";
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = hex(accent);
+    g.fillRect(0, h - 18, w, 18);
+    g.fillRect(0, 0, w, 6);
+    const total = lines.reduce((s, l) => s + l.size * 1.15, 0);
+    let y = (h - 18 - total) / 2;
+    g.textAlign = "center";
+    g.textBaseline = "top";
+    for (const line of lines) {
+      let size = line.size;
+      g.font = `${size}px ${line.font ?? '"Russo One", sans-serif'}`;
+      while (g.measureText(line.text).width > w - 60) { size -= 4; g.font = `${size}px ${line.font ?? '"Russo One", sans-serif'}`; }
+      g.fillStyle = line.color ?? "#ffffff";
+      g.fillText(line.text, w / 2, y + (line.size - size) / 2);
+      y += line.size * 1.15;
+    }
+  });
+}
+function floatingLabel(text, color, width) {
+  const tex = canvasTexture(512, 128, (g, w, h) => {
+    let size = 78;
+    do { size -= 4; g.font = `${size}px "Russo One", sans-serif`; } while (g.measureText(text).width > w - 40);
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.lineJoin = "round";
+    g.lineWidth = 16;
+    g.strokeStyle = "#0a1430";
+    g.strokeText(text, w / 2, h / 2 + 4);
+    g.fillStyle = color;
+    g.fillText(text, w / 2, h / 2 + 4);
+  });
+  const sprite = new THREE.Sprite(own(new THREE.SpriteMaterial({ map: own(tex), depthWrite: false })));
+  sprite.scale.set(width, width / 4, 1);
+  return sprite;
+}
+
+function makePlayer() {
+  const kitMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.55, envMapIntensity: 0.7 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.5, envMapIntensity: 0.7 });
+  const skin = std(0xe8b98a, { roughness: 0.6 });
+  const shorts = std(0xf8fafc, { roughness: 0.6 });
+  const sock = std(0xf8fafc, { roughness: 0.7 });
+  const shoe = std(0x111827, { roughness: 0.4 });
+  const sole = std(0xf8fafc, { roughness: 0.5 });
+  const dark = std(0x1f2937, { roughness: 0.4 });
+  const white = std(0xffffff, { roughness: 0.25 });
+
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const hips = new THREE.Group();
+  hips.position.y = 1.0;
+  body.add(hips);
+  part(hips, new RoundedBoxGeometry(0.84, 0.4, 0.52, 3, 0.12), shorts, [0, 0, 0]);
+
+  const torso = new THREE.Group();
+  torso.position.y = 0.14;
+  hips.add(torso);
+  part(torso, new RoundedBoxGeometry(0.92, 0.96, 0.52, 4, 0.18), kitMat, [0, 0.5, 0]);
+  const number = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.5, 0.5),
+    new THREE.MeshStandardMaterial({ map: canvasTexture(128, 128, (g, w, h) => {
+      g.font = '100px "Russo One", sans-serif';
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillStyle = "#ffffff";
+      g.fillText("7", w / 2, h / 2 + 6);
+    }), transparent: true, roughness: 0.6 }),
+  );
+  number.position.set(0, 0.58, -0.265);
+  number.rotation.y = Math.PI;
+  torso.add(number);
+
+  const neck = new THREE.Group();
+  neck.position.y = 1.0;
+  torso.add(neck);
+  part(neck, GEO.sphere, skin, [0, 0.42, 0], 0.42);
+  for (const side of [-1, 1]) {
+    part(neck, GEO.sphereSmall, white, [side * 0.14, 0.47, 0.35], [0.075, 0.09, 0.05]);
+    part(neck, GEO.sphereSmall, dark, [side * 0.14, 0.465, 0.39], [0.045, 0.055, 0.03]);
+    part(neck, GEO.box, dark, [side * 0.14, 0.59, 0.37], [0.13, 0.03, 0.03], [0, 0, side * -0.12]);
+    part(neck, GEO.sphereSmall, skin, [side * 0.42, 0.42, 0], [0.07, 0.1, 0.06]);
+  }
+  part(neck, new THREE.TorusGeometry(0.09, 0.018, 6, 16, Math.PI), dark, [0, 0.34, 0.405], 1, [0, 0, Math.PI]);
+  part(neck, new THREE.SphereGeometry(0.455, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), capMat, [0, 0.48, 0], [1, 0.85, 1]);
+  part(neck, new THREE.CylinderGeometry(0.3, 0.3, 0.035, 24), capMat, [0, 0.53, 0.36], [1, 1, 0.8], [0.12, 0, 0]);
+
+  function arm(side) {
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * 0.6, 0.86, 0);
+    torso.add(shoulder);
+    part(shoulder, new THREE.CapsuleGeometry(0.15, 0.12, 4, 12), kitMat, [0, -0.08, 0]);
+    part(shoulder, new THREE.CapsuleGeometry(0.115, 0.24, 4, 12), skin, [0, -0.24, 0]);
+    const elbow = new THREE.Group();
+    elbow.position.y = -0.44;
+    shoulder.add(elbow);
+    part(elbow, new THREE.CapsuleGeometry(0.105, 0.22, 4, 12), skin, [0, -0.17, 0]);
+    part(elbow, GEO.cyl, capMat, [0, -0.31, 0], [0.12, 0.08, 0.12]);
+    part(elbow, GEO.sphereSmall, skin, [0, -0.42, 0], 0.12);
+    const hand = new THREE.Group();
+    hand.position.y = -0.42;
+    elbow.add(hand);
+    return { shoulder, elbow, hand };
+  }
+  function leg(side) {
+    const hip = new THREE.Group();
+    hip.position.set(side * 0.22, -0.06, 0);
+    hips.add(hip);
+    part(hip, new THREE.CapsuleGeometry(0.15, 0.26, 4, 12), skin, [0, -0.24, 0]);
+    const knee = new THREE.Group();
+    knee.position.y = -0.46;
+    hip.add(knee);
+    part(knee, new THREE.CapsuleGeometry(0.135, 0.24, 4, 12), sock, [0, -0.2, 0]);
+    part(knee, GEO.cyl, kitMat, [0, -0.06, 0], [0.145, 0.07, 0.145]);
+    part(knee, new RoundedBoxGeometry(0.27, 0.15, 0.44, 2, 0.06), shoe, [0, -0.41, 0.06]);
+    part(knee, GEO.box, sole, [0, -0.475, 0.06], [0.26, 0.04, 0.42]);
+    return { hip, knee };
+  }
+  const armL = arm(-1);
+  const armR = arm(1);
+  const legL = leg(-1);
+  const legR = leg(1);
+
+  const gear = new THREE.Group();
+  gear.rotation.x = Math.PI / 2;
+  armR.hand.add(gear);
+  const bag = new THREE.Group();
+  bag.position.set(0, 0.5, -0.42);
+  torso.add(bag);
+
+  root.position.set(0, 0, SPAWN_Z);
+  body.rotation.y = Math.PI;
+  scene.add(root);
+  return {
+    root, body, hips, torso, neck, armL, armR, legL, legR, gear, bag, kitMat, capMat,
+    velocity: new THREE.Vector3(), facing: Math.PI, swingT: 1, phase: 0, run: 0, air: 0, land: 0, bagPunch: 0, lastStep: 0,
+  };
+}
+
+function dressPlayer() {
+  player.gear.clear();
+  player.gear.add(gearModel(GEAR[state.gear]));
+  player.bag.clear();
+  player.bag.add(bagModel(state.bag));
+  player.kitMat.color.set(WORLDS[state.world].kit);
+  player.capMat.color.set(WORLDS[state.world].accent);
+}
+
+// =====================================================================
+// Particles: one instanced mesh of little cubes per scene
+// =====================================================================
+
+class Particles {
+  constructor(parent, max = 400) {
+    this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.5, envMapIntensity: 0.8 }), max);
+    this.mesh.frustumCulled = false;
+    this.mesh.count = 0;
+    this.max = max;
+    this.items = [];
+    this.dummy = new THREE.Object3D();
+    this.color = new THREE.Color();
+    parent.add(this.mesh);
+  }
+  burst(pos, { count = 12, colors = [0xffffff], speed = 5, up = 4, gravity = 14, life = 0.8, size = 0.15 } = {}) {
+    for (let i = 0; i < count && this.items.length < this.max; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = speed * (0.4 + Math.random() * 0.6);
+      this.items.push({
+        p: pos.clone(),
+        v: new THREE.Vector3(Math.cos(a) * s, up * (0.5 + Math.random()), Math.sin(a) * s),
+        r: new THREE.Vector3(Math.random() * 6, Math.random() * 6, Math.random() * 6),
+        spin: (Math.random() - 0.5) * 16,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life, age: 0, gravity, size: size * (0.6 + Math.random() * 0.8),
+      });
+    }
+  }
+  update(dt) {
+    this.items = this.items.filter(it => (it.age += dt) < it.life);
+    this.items.forEach((it, i) => {
+      it.v.y -= it.gravity * dt;
+      it.p.addScaledVector(it.v, dt);
+      it.r.x += it.spin * dt;
+      it.r.y += it.spin * dt;
+      this.dummy.position.copy(it.p);
+      this.dummy.rotation.set(it.r.x, it.r.y, it.r.z);
+      this.dummy.scale.setScalar(it.size * (1 - (it.age / it.life) ** 2));
+      this.dummy.updateMatrix();
+      this.mesh.setMatrixAt(i, this.dummy.matrix);
+      this.mesh.setColorAt(i, this.color.set(it.color));
+    });
+    this.mesh.count = this.items.length;
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+}
+const particles = new Particles(scene);
+
+// =====================================================================
+// World building
+// =====================================================================
+
+let world = null;
+let worldOwned = [];
+const own = thing => {
+  worldOwned.push(thing);
+  return thing;
+};
+const PPU = 16;
+const FIELD_W = HALF * 2;
+const FIELD_L = BACK_Z - END_Z;
+const ZONE_CENTERS = ZONE_START.map((z, k) => (z + (ZONE_START[k + 1] ?? END_Z)) / 2);
+const zoneAt = z => (z > ZONE_START[1] ? 0 : z > ZONE_START[2] ? 1 : 2);
+
+function fieldTexture(def, rand) {
+  return canvasTexture(FIELD_W * PPU, FIELD_L * PPU, (g, w, h) => {
+    const X = x => (x + HALF) * PPU;
+    const Y = z => (z - END_Z) * PPU;
+    const U = u => u * PPU;
+    const stroke = (width, color = "rgba(255,255,255,0.92)") => { g.strokeStyle = color; g.lineWidth = U(width); };
+    const circle = (x, z, r, fill) => {
+      g.beginPath();
+      g.arc(X(x), Y(z), U(r), 0, Math.PI * 2);
+      if (fill) { g.fillStyle = fill; g.fill(); } else g.stroke();
+    };
+    const lineAcross = z => { g.beginPath(); g.moveTo(X(-HALF + 1.5), Y(z)); g.lineTo(X(HALF - 1.5), Y(z)); g.stroke(); };
+    const accent = hex(def.accent);
+    switch (def.ball) {
+      case "soccer": {
+        g.fillStyle = "#3a9645";
+        g.fillRect(0, 0, w, h);
+        for (let i = 0; i * 4 < FIELD_L; i += 2) { g.fillStyle = "#43a650"; g.fillRect(0, U(i * 4), w, U(4)); }
+        stroke(0.22);
+        g.strokeRect(X(-HALF + 1.5), Y(END_Z + 1.5), U(FIELD_W - 3), U(FIELD_L - 3));
+        for (const zc of ZONE_CENTERS) { circle(0, zc, 7); lineAcross(zc); circle(0, zc, 0.45, "#ffffff"); }
+        for (const zg of ZONE_START.slice(1)) {
+          g.strokeRect(X(-14), Y(zg), U(28), U(10));
+          g.strokeRect(X(-14), Y(zg - 10), U(28), U(10));
+          g.strokeRect(X(-6), Y(zg), U(12), U(4));
+          g.strokeRect(X(-6), Y(zg - 4), U(12), U(4));
+        }
+        break;
+      }
+      case "basketball": {
+        for (let x = -HALF; x < HALF; x += 0.8) {
+          g.fillStyle = `hsl(31, 58%, ${50 + rand() * 9}%)`;
+          g.fillRect(X(x), 0, U(0.8), h);
+          g.fillStyle = "rgba(70,35,10,0.35)";
+          g.fillRect(X(x), 0, U(0.05), h);
+          for (let z = END_Z + rand() * 6; z < BACK_Z; z += 4 + rand() * 6) g.fillRect(X(x), Y(z), U(0.8), U(0.05));
+        }
+        stroke(0.22);
+        g.strokeRect(X(-HALF + 1.5), Y(END_Z + 1.5), U(FIELD_W - 3), U(FIELD_L - 3));
+        for (const zc of ZONE_CENTERS) { circle(0, zc, 5, accent); circle(0, zc, 5); lineAcross(zc); }
+        for (const zg of ZONE_START.slice(1)) {
+          for (const dir of [1, -1]) {
+            g.fillStyle = accent;
+            g.globalAlpha = 0.8;
+            g.fillRect(X(-6), dir > 0 ? Y(zg) : Y(zg - 14), U(12), U(14));
+            g.globalAlpha = 1;
+            g.strokeRect(X(-6), dir > 0 ? Y(zg) : Y(zg - 14), U(12), U(14));
+            circle(0, zg + dir * 14, 4);
+            g.beginPath();
+            g.arc(X(0), Y(zg), U(17), dir > 0 ? 0 : Math.PI, dir > 0 ? Math.PI : Math.PI * 2);
+            g.stroke();
+          }
+        }
+        break;
+      }
+      case "football": {
+        for (let i = 0; i * 5 < FIELD_L; i++) { g.fillStyle = i % 2 ? "#3c9a44" : "#46a84f"; g.fillRect(0, U(i * 5), w, U(5)); }
+        g.fillStyle = accent;
+        g.fillRect(X(-HALF + 1.5), Y(ZONE_START[0]), U(FIELD_W - 3), U(BACK_Z - ZONE_START[0] - 1.5));
+        g.save();
+        g.translate(X(0), Y((BACK_Z + ZONE_START[0]) / 2));
+        g.font = `${U(5)}px "Graduate", serif`;
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillStyle = "rgba(255,255,255,0.9)";
+        g.fillText("LEGENDS", 0, 0);
+        g.restore();
+        stroke(0.25);
+        g.strokeRect(X(-HALF + 1.5), Y(END_Z + 1.5), U(FIELD_W - 3), U(FIELD_L - 3));
+        g.font = `${U(3)}px "Russo One", sans-serif`;
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillStyle = "rgba(255,255,255,0.9)";
+        for (let z = ZONE_START[0], yard = 0; z > END_Z + 2; z -= 5, yard += 5) {
+          lineAcross(z);
+          if (yard % 10 === 0 && yard > 0 && yard < 100) for (const x of [-21, 21]) g.fillText(String(yard <= 50 ? yard : 100 - yard), X(x), Y(z) - U(2.2));
+          for (let k = 1; k < 5; k++) for (const x of [-7, 7]) g.fillRect(X(x - 0.5), Y(z - k), U(1), U(0.15));
+        }
+        break;
+      }
+      case "baseball": {
+        for (let i = 0; i * 4 < FIELD_W; i++) for (let j = 0; j * 4 < FIELD_L; j++) {
+          g.fillStyle = (i + j) % 2 ? "#3f9a47" : "#47a651";
+          g.fillRect(U(i * 4), U(j * 4), U(4), U(4));
+        }
+        for (const zc of ZONE_CENTERS) {
+          g.save();
+          g.translate(X(0), Y(zc));
+          g.rotate(Math.PI / 4);
+          g.fillStyle = "#c98b55";
+          g.fillRect(-U(8.5), -U(8.5), U(17), U(17));
+          g.fillStyle = "#3f9a47";
+          g.fillRect(-U(6.2), -U(6.2), U(12.4), U(12.4));
+          g.fillStyle = "#ffffff";
+          for (const [bx, by] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) g.fillRect(U(bx * 7.35) - U(0.6), U(by * 7.35) - U(0.6), U(1.2), U(1.2));
+          g.restore();
+          circle(0, zc, 1.8, "#c98b55");
+          g.fillStyle = "#ffffff";
+          g.fillRect(X(-0.6), Y(zc) - U(0.12), U(1.2), U(0.24));
+        }
+        stroke(0.25);
+        g.strokeRect(X(-HALF + 1.5), Y(END_Z + 1.5), U(FIELD_W - 3), U(FIELD_L - 3));
+        break;
+      }
+      case "puck": {
+        g.fillStyle = "#eef7fc";
+        g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 500; i++) {
+          g.strokeStyle = `rgba(150,180,200,${rand() * 0.25})`;
+          g.lineWidth = 1 + rand() * 2;
+          const x = rand() * w, y = rand() * h, a = rand() * Math.PI;
+          g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 60, y + Math.sin(a) * 60); g.stroke();
+        }
+        for (const zc of ZONE_CENTERS) {
+          stroke(0.6, "#dc2626");
+          lineAcross(zc);
+          stroke(0.6, "#2563eb");
+          lineAcross(zc + 8);
+          lineAcross(zc - 8);
+          stroke(0.2, "#2563eb");
+          circle(0, zc, 4.5);
+          stroke(0.2, "#dc2626");
+          for (const x of [-13, 13]) for (const dz of [-13, 13]) { circle(x, zc + dz, 4); circle(x, zc + dz, 0.5, "#dc2626"); }
+        }
+        for (const zg of ZONE_START.slice(1)) for (const dir of [1, -1]) {
+          g.fillStyle = "rgba(96,165,250,0.45)";
+          g.beginPath();
+          g.arc(X(0), Y(zg), U(3.5), dir > 0 ? 0 : Math.PI, dir > 0 ? Math.PI : Math.PI * 2);
+          g.fill();
+        }
+        stroke(0.3, "#dc2626");
+        g.strokeRect(X(-HALF + 1.5), Y(END_Z + 1.5), U(FIELD_W - 3), U(FIELD_L - 3));
+        break;
+      }
     }
   });
 }
 
-function nearestNode() {
-  const p = player.root.position;
-  let best = null;
-  let bestGap = REACH;
-  for (const n of nodes) {
-    if (n.respawn > 0 || n.zone >= state.zones) continue;
-    const gap = Math.hypot(n.x - p.x, n.z - p.z) - n.radius;
-    if (gap < bestGap) { best = n; bestGap = gap; }
-  }
-  return best;
+function adTexture(def) {
+  const tex = canvasTexture(1024, 64, (g, w, h) => {
+    g.fillStyle = hex(def.accent);
+    g.fillRect(0, 0, w, h);
+    g.font = '40px "Russo One", sans-serif';
+    g.textBaseline = "middle";
+    g.fillStyle = "#ffffff";
+    g.fillText(`SPORTS LEGENDS  ★  ${def.name.toUpperCase()}  ★`, 16, h / 2 + 2);
+  });
+  tex.wrapS = THREE.RepeatWrapping;
+  return tex;
 }
 
-function updateNodes(dt) {
-  for (const n of nodes) {
-    if (n.respawn > 0) {
-      n.respawn -= dt;
-      if (n.respawn <= 0) {
-        n.hitsLeft = NODE_TYPES[n.type].hits;
-        n.grow = 0;
-        n.group.visible = true;
-      }
-      continue;
+function stripesTexture(color) {
+  const tex = canvasTexture(128, 128, (g, w, h) => {
+    g.fillStyle = hex(color);
+    for (let i = -2; i < 4; i++) {
+      g.beginPath();
+      g.moveTo(i * 64, h); g.lineTo(i * 64 + 32, h); g.lineTo(i * 64 + 32 + h, 0); g.lineTo(i * 64 + h, 0);
+      g.fill();
     }
-    n.punch = Math.max(0, n.punch - dt * 5);
-    n.grow = Math.min(1, n.grow + dt * 3);
-    n.group.scale.setScalar(n.grow * (1 - 0.15 * n.punch));
-  }
+  });
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
 }
 
-// ---------- Player ----------
+function netTexture() {
+  const tex = canvasTexture(128, 128, (g, w, h) => {
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = 3;
+    for (let i = 0; i <= 8; i++) {
+      g.beginPath(); g.moveTo(i * 16, 0); g.lineTo(i * 16, h); g.stroke();
+      g.beginPath(); g.moveTo(0, i * 16); g.lineTo(w, i * 16); g.stroke();
+    }
+  });
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 2);
+  return tex;
+}
+
+function signBoard(lines, width, height, accent) {
+  const g = new THREE.Group();
+  part(g, own(new RoundedBoxGeometry(width + 0.4, height + 0.4, 0.3, 2, 0.1)), std(0x0a1430, { roughness: 0.4 }), [0, 0, 0]);
+  const face = new THREE.Mesh(
+    own(new THREE.PlaneGeometry(width, height)),
+    own(new THREE.MeshBasicMaterial({ map: own(signTexture(lines, { width: 1024, height: Math.round((1024 * height) / width), accent })), toneMapped: false })),
+  );
+  face.position.z = 0.16;
+  g.add(face);
+  return g;
+}
+
+function booth(color, label) {
+  const g = new THREE.Group();
+  const white = std(0xf8fafc, { roughness: 0.4 });
+  const tint = std(color, { roughness: 0.4 });
+  part(g, own(new RoundedBoxGeometry(4.2, 1.2, 1.4, 2, 0.12)), white, [0, 0.6, 0]);
+  part(g, GEO.box, tint, [0, 0.6, 0.71], [4, 0.9, 0.02]);
+  for (const x of [-1.95, 1.95]) part(g, GEO.cyl, white, [x, 1.9, -0.3], [0.08, 3.6, 0.08]);
+  const awning = part(g, GEO.box, own(new THREE.MeshStandardMaterial({ map: own(stripesTexture(color)), color: 0xffffff, roughness: 0.6 })), [0, 3.5, 0.2], [4.6, 0.2, 2.2], [0.18, 0, 0]);
+  awning.material.map.repeat.set(4, 1);
+  const sign = signBoard([{ text: label, size: 120 }], 4, 1, color);
+  sign.position.set(0, 4.35, -0.3);
+  g.add(sign);
+  return g;
+}
+
+function prop(def) {
+  const g = new THREE.Group();
+  const white = std(0xf8fafc, { roughness: 0.35 });
+  const net = own(new THREE.MeshStandardMaterial({ map: own(netTexture()), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.8 }));
+  switch (def.ball) {
+    case "soccer":
+      for (const x of [-3.6, 3.6]) part(g, GEO.cyl, white, [x, 1.2, 0], [0.12, 2.4, 0.12]);
+      part(g, GEO.cyl, white, [0, 2.4, 0], [0.12, 7.4, 0.12], [0, 0, Math.PI / 2]);
+      part(g, GEO.box, net, [0, 1.2, -1.2], [7.2, 2.4, 0.02]);
+      part(g, GEO.box, net, [0, 2.4, -0.6], [7.2, 0.02, 1.2]);
+      for (const x of [-3.6, 3.6]) part(g, GEO.box, net, [x, 1.2, -0.6], [0.02, 2.4, 1.2]);
+      break;
+    case "basketball":
+      part(g, GEO.cyl, std(0x6b7280, { metalness: 0.7, roughness: 0.3 }), [0, 2.6, -1.4], [0.15, 5.2, 0.15]);
+      part(g, GEO.box, std(0x6b7280, { metalness: 0.7, roughness: 0.3 }), [0, 4.6, -0.9], [0.15, 0.15, 1.1]);
+      part(g, GEO.box, white, [0, 4.9, -0.3], [2.2, 1.4, 0.08]);
+      part(g, GEO.box, std(0xdc2626), [0, 4.65, -0.25], [0.7, 0.5, 0.02]);
+      part(g, GEO.torus, std(0xf97316, { metalness: 0.5, roughness: 0.3 }), [0, 4.3, 0.15], [0.38, 0.38, 2], [Math.PI / 2, 0, 0]);
+      part(g, own(new THREE.CylinderGeometry(0.38, 0.25, 0.6, 16, 1, true)), net, [0, 4.0, 0.15]);
+      break;
+    case "football": {
+      const yellow = std(0xfacc15, { roughness: 0.35, metalness: 0.2 });
+      part(g, GEO.cyl, yellow, [0, 1.8, -0.8], [0.18, 3.6, 0.18]);
+      part(g, GEO.cyl, yellow, [0, 3.0, -0.4], [0.15, 0.9, 0.15], [Math.PI / 2, 0, 0]);
+      part(g, GEO.cyl, yellow, [0, 3.6, 0], [0.15, 5.6, 0.15], [0, 0, Math.PI / 2]);
+      for (const x of [-2.8, 2.8]) part(g, GEO.cyl, yellow, [x, 6.6, 0], [0.13, 6, 0.13]);
+      break;
+    }
+    case "baseball": {
+      const yellow = std(0xfacc15, { roughness: 0.35, metalness: 0.2 });
+      part(g, GEO.cyl, yellow, [0, 6, 0], [0.2, 12, 0.2]);
+      part(g, GEO.box, net, [0.7, 7, 0], [1.2, 8, 0.02]);
+      part(g, GEO.cyl, std(0x6b7280), [0, 0.15, 0], [0.5, 0.3, 0.5]);
+      break;
+    }
+    case "puck": {
+      const red = std(0xdc2626, { roughness: 0.3, metalness: 0.4 });
+      for (const x of [-1.8, 1.8]) part(g, GEO.cyl, red, [x, 0.6, 0], [0.08, 1.2, 0.08]);
+      part(g, GEO.cyl, red, [0, 1.2, 0], [0.08, 3.6, 0.08], [0, 0, Math.PI / 2]);
+      part(g, GEO.box, net, [0, 0.6, -0.9], [3.6, 1.2, 0.02]);
+      part(g, GEO.box, net, [0, 1.2, -0.45], [3.6, 0.02, 0.9]);
+      for (const x of [-1.8, 1.8]) part(g, GEO.box, net, [x, 0.6, -0.45], [0.02, 1.2, 0.9]);
+      break;
+    }
+  }
+  return g;
+}
+
+function buildCrowd(root, def, rand) {
+  const fans = [];
+  const shirts = [def.accent, def.kit, 0xffffff, 0xfacc15, def.accent, 0x111827];
+  const skins = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac];
+  const steps = 6;
+  for (const side of [-1, 1]) {
+    for (let s = 0; s < steps; s++) {
+      const height = 1.4 + s * 1.05;
+      const x = side * (HALF + 3.4 + s * 2.2);
+      const step = part(root, GEO.box, flat(s % 2 ? def.seats : new THREE.Color(def.seats).offsetHSL(0, 0, 0.06).getHex()), [x, height / 2, (BACK_Z + END_Z) / 2], [2.2, height, FIELD_L + 4]);
+      step.castShadow = false;
+      for (let z = BACK_Z; z > END_Z; z -= 1.25) {
+        if (rand() < 0.15) continue;
+        fans.push({ x: x + (rand() - 0.5) * 0.4, y: height, z: z + (rand() - 0.5) * 0.3, phase: rand() * Math.PI * 2, shirt: shirts[Math.floor(rand() * shirts.length)], skin: skins[Math.floor(rand() * skins.length)] });
+      }
+    }
+    part(root, GEO.box, flat(0x4b5563), [side * (HALF + 3.4 + steps * 2.2 + 0.5), 5.5, (BACK_Z + END_Z) / 2], [1, 11, FIELD_L + 4]).castShadow = false;
+  }
+  const bodies = own(new THREE.InstancedMesh(own(new THREE.CylinderGeometry(0.26, 0.32, 0.95, 6)), flat(0xffffff), fans.length));
+  const heads = own(new THREE.InstancedMesh(own(new THREE.SphereGeometry(1, 6, 4)), flat(0xffffff), fans.length));
+  const color = new THREE.Color();
+  fans.forEach((fan, i) => {
+    bodies.setColorAt(i, color.set(fan.shirt));
+    heads.setColorAt(i, color.set(fan.skin));
+  });
+  root.add(bodies, heads);
+  const crowd = { fans, bodies, heads, dummy: new THREE.Object3D() };
+  updateCrowd(crowd, 0, 0);
+  return crowd;
+}
+
+function updateCrowd(crowd, time, hype) {
+  const { fans, bodies, heads, dummy } = crowd;
+  const speed = 5 + hype * 6;
+  const height = 0.06 + hype * 0.55;
+  fans.forEach((fan, i) => {
+    const bounce = Math.max(0, Math.sin(time * speed + fan.phase)) * height;
+    dummy.position.set(fan.x, fan.y + 0.55 + bounce, fan.z);
+    dummy.scale.setScalar(1);
+    dummy.updateMatrix();
+    bodies.setMatrixAt(i, dummy.matrix);
+    dummy.position.y += 0.62;
+    dummy.scale.setScalar(0.24);
+    dummy.updateMatrix();
+    heads.setMatrixAt(i, dummy.matrix);
+  });
+  bodies.instanceMatrix.needsUpdate = true;
+  heads.instanceMatrix.needsUpdate = true;
+}
+
+function swirlMaterial(color) {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    uniforms: { time: { value: 0 }, color: { value: new THREE.Color(color) } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform float time;
+      uniform vec3 color;
+      varying vec2 vUv;
+      void main() {
+        vec2 p = vUv - 0.5;
+        float r = length(p) * 2.0;
+        float a = atan(p.y, p.x);
+        float s = sin(a * 4.0 + r * 12.0 - time * 5.0);
+        vec3 c = mix(color, vec3(1.0), 0.35 + 0.35 * s);
+        gl_FragColor = vec4(c, smoothstep(1.0, 0.2, r) * (0.75 + 0.25 * s));
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+}
+
+function trophyModel() {
+  const g = new THREE.Group();
+  const gold = std(0xfbbf24, { metalness: 1, roughness: 0.18, emissive: 0x92400e, emissiveIntensity: 0.25 });
+  const cup = [[0.05, 0], [0.9, 0.05], [0.9, 0.35], [0.35, 0.45], [0.25, 0.9], [0.3, 1.2], [1.0, 1.7], [1.3, 2.8], [1.25, 2.9]]
+    .map(([x, y]) => new THREE.Vector2(x, y));
+  part(g, own(new THREE.LatheGeometry(cup, 40)), gold, [0, 0.8, 0]);
+  for (const side of [-1, 1]) part(g, GEO.torus, gold, [side * 1.35, 3.0, 0], [0.55, 0.55, 2.2], [0, 0, side * 0.3]);
+  part(g, own(new RoundedBoxGeometry(2.4, 0.8, 2.4, 2, 0.1)), std(0x111827, { roughness: 0.3, metalness: 0.4 }), [0, 0.4, 0]);
+  return g;
+}
+
+function buildWorld(w) {
+  if (world) {
+    scene.remove(world.root);
+    worldOwned.forEach(thing => thing.dispose());
+    worldOwned = [];
+  }
+  const def = WORLDS[w];
+  const rand = mulberry32(1000 + w);
+  const root = new THREE.Group();
+  scene.add(root);
+  document.documentElement.style.setProperty("--accent", hex(def.accent));
+  sky.material.uniforms.top.value.set(def.skyTop);
+  sky.material.uniforms.low.value.set(def.skyLow);
+  scene.fog.color.set(def.skyLow);
+
+  const outside = part(root, own(new THREE.PlaneGeometry(900, 900)), flat(0x5b6170), [0, -0.05, 0], 1, [-Math.PI / 2, 0, 0]);
+  outside.castShadow = false;
+  const fieldTex = own(fieldTexture(def, rand));
+  const field = part(root, own(new THREE.PlaneGeometry(FIELD_W, FIELD_L)), own(new THREE.MeshStandardMaterial({
+    map: fieldTex, roughness: def.ball === "puck" ? 0.12 : def.ball === "basketball" ? 0.35 : 0.85, envMapIntensity: def.ball === "puck" ? 1 : 0.5,
+  })), [0, 0, (BACK_Z + END_Z) / 2], 1, [-Math.PI / 2, 0, 0]);
+  field.castShadow = false;
+
+  const wallMat = std(def.wall, { roughness: 0.4 });
+  const adMat = own(new THREE.MeshBasicMaterial({ map: own(adTexture(def)), toneMapped: false }));
+  adMat.map.repeat.set(FIELD_L / 30, 1);
+  for (const side of [-1, 1]) {
+    part(root, GEO.box, wallMat, [side * (HALF + 0.5), 0.7, (BACK_Z + END_Z) / 2], [1, 1.4, FIELD_L]);
+    const ad = new THREE.Mesh(own(new THREE.PlaneGeometry(FIELD_L, 0.9)), adMat);
+    ad.position.set(side * (HALF - 0.01), 0.75, (BACK_Z + END_Z) / 2);
+    ad.rotation.y = side * -Math.PI / 2;
+    root.add(ad);
+  }
+  for (const z of [BACK_Z + 0.5, END_Z - 0.5]) part(root, GEO.box, wallMat, [0, 0.7, z], [FIELD_W + 2, 1.4, 1]);
+
+  const crowd = buildCrowd(root, def, rand);
+
+  for (const [x, z] of [[-1, BACK_Z - 4], [1, BACK_Z - 4], [-1, END_Z + 8], [1, END_Z + 8]]) {
+    const towerX = x * (HALF + 20);
+    part(root, GEO.cyl, std(0x9ca3af, { metalness: 0.8, roughness: 0.3 }), [towerX, 14, z], [0.5, 28, 0.5]).castShadow = false;
+    part(root, GEO.box, std(0xffffff, { emissive: 0xfff7d6, emissiveIntensity: 2 }), [towerX, 28.5, z], [6, 3, 0.6], [0, x * 0.5, 0]).castShadow = false;
+  }
+  const board = signBoard([
+    { text: "SPORTS LEGENDS", size: 70, color: hex(def.accent) },
+    { text: def.name.toUpperCase(), size: 130, font: '"Graduate", serif' },
+    { text: `WORLD ${w + 1} OF ${WORLDS.length}`, size: 60, color: "#fbbf24" },
+  ], 34, 13, def.accent);
+  board.position.set(0, 20, END_Z - 18);
+  root.add(board);
+  part(root, GEO.box, std(0x374151, { metalness: 0.6, roughness: 0.4 }), [0, 7, END_Z - 18.4], [2, 14, 1]).castShadow = false;
+
+  for (const side of [-1, 1]) {
+    const p = prop(def);
+    p.position.set(side * 25.5, 0, 30);
+    p.rotation.y = side * -Math.PI / 2;
+    root.add(p);
+  }
+
+  const pads = PADS.map(pad => {
+    const style = PAD_STYLE[pad.kind];
+    const disc = part(root, GEO.cyl, std(style.color, { emissive: style.color, emissiveIntensity: 0.45, roughness: 0.3 }), [pad.x, 0.06, pad.z], [PAD_RADIUS, 0.12, PAD_RADIUS]);
+    disc.castShadow = false;
+    part(root, GEO.torus, std(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.6 }), [pad.x, 0.13, pad.z], [PAD_RADIUS, PAD_RADIUS, 1.2], [Math.PI / 2, 0, 0]).castShadow = false;
+    const label = floatingLabel(style.label, "#ffffff", 6.5);
+    label.position.set(pad.x, 3.6, pad.z);
+    label.material.transparent = true;
+    root.add(label);
+    const side = Math.sign(pad.booth[0]);
+    let model;
+    if (pad.kind === "egg") {
+      model = new THREE.Group();
+      part(model, GEO.cyl, std(0x1f2937, { metalness: 0.5, roughness: 0.3 }), [0, 0.6, 0], [1.3, 1.2, 1.3]);
+      part(model, GEO.torus, std(style.color, { emissive: style.color, emissiveIntensity: 0.6 }), [0, 1.2, 0], [1.3, 1.3, 1.5], [Math.PI / 2, 0, 0]);
+      const egg = eggModel(w, false).group;
+      egg.scale.setScalar(2.4);
+      egg.position.y = 1.3;
+      model.add(egg);
+      model.userData.egg = egg;
+    } else if (pad.kind === "travel") {
+      model = new THREE.Group();
+      part(model, GEO.torus, std(style.color, { metalness: 0.7, roughness: 0.25 }), [0, 2.4, 0], [2, 2, 3]);
+      const swirl = new THREE.Mesh(own(new THREE.CircleGeometry(1.9, 40)), own(swirlMaterial(style.color)));
+      swirl.position.y = 2.4;
+      model.add(swirl);
+      model.userData.swirl = swirl;
+    } else {
+      model = booth(style.color, style.label);
+    }
+    model.position.set(pad.booth[0], 0, pad.booth[1]);
+    model.rotation.y = side * -Math.PI / 2;
+    root.add(model);
+    return { ...pad, model, label };
+  });
+
+  const nodes = [];
+  for (let k = 0; k < 3; k++) {
+    const kind = NODE_KINDS[k];
+    const zTop = k === 0 ? 9 : ZONE_START[k] - 4;
+    const zBottom = k === 2 ? PORTAL_Z + 7 : (ZONE_START[k + 1] ?? END_Z) + 3;
+    let placed = 0;
+    for (let tries = 0; placed < NODES_PER_ZONE; tries++) {
+      if (tries > 4000) throw new Error(`Could not fit ${NODES_PER_ZONE} nodes in zone ${k} of ${def.name}`);
+      const x = (rand() * 2 - 1) * (HALF - 4);
+      const z = zBottom + rand() * (zTop - zBottom);
+      if (nodes.some(n => Math.hypot(n.x - x, n.z - z) < 5.6)) continue;
+      if (PADS.some(p => Math.hypot(p.x - x, p.z - z) < 6.5 || Math.hypot(p.booth[0] - x, p.booth[1] - z) < 5)) continue;
+      const group = nodeModel(def, kind, rand);
+      group.position.set(x, 0, z);
+      group.rotation.y = rand() * Math.PI * 2;
+      group.traverse(o => { if (o.isMesh) own(o.geometry); });
+      root.add(group);
+      nodes.push({ k, kind, x, z, radius: NODE_SPEC[kind].radius, hits: NODE_SPEC[kind].hits, respawn: 0, punch: 0, grow: 1, group });
+      placed++;
+    }
+  }
+
+  const gateMat = own(new THREE.MeshBasicMaterial({ map: own(stripesTexture(def.accent)), color: 0xffffff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+  gateMat.map.repeat.set(FIELD_W / 6, 7 / 6);
+  const gates = [];
+  for (let k = 1; k < 3; k++) {
+    const zone = zoneIndex(w, k);
+    if (state.zones > zone) continue;
+    const group = new THREE.Group();
+    group.position.z = ZONE_START[k];
+    const fieldWall = new THREE.Mesh(own(new THREE.PlaneGeometry(FIELD_W, 7)), gateMat);
+    fieldWall.position.y = 3.5;
+    group.add(fieldWall);
+    for (const side of [-1, 1]) part(group, GEO.box, std(def.accent, { metalness: 0.6, roughness: 0.3 }), [side * HALF, 4.5, 0], [0.9, 9, 0.9]);
+    const sign = signBoard([
+      { text: `LOCKED · ZONE ${k + 1}`, size: 54, color: hex(def.accent) },
+      { text: def.zones[k], size: 92 },
+      { text: money(zoneCost(zone)), size: 78, color: "#fbbf24" },
+    ], 13, 4.6, def.accent);
+    sign.position.y = 9.8;
+    group.add(sign);
+    group.visible = k === openZonesHere();
+    root.add(group);
+    gates.push({ k, group, sinking: -1 });
+  }
+
+  const portal = new THREE.Group();
+  portal.position.set(0, 0, PORTAL_Z);
+  part(portal, GEO.cyl, std(0x1f2937, { metalness: 0.6, roughness: 0.3 }), [0, 0.2, 0], [5, 0.4, 5]).castShadow = false;
+  part(portal, GEO.torus, std(def.accent, { emissive: def.accent, emissiveIntensity: 0.8 }), [0, 0.42, 0], [5, 5, 1.2], [Math.PI / 2, 0, 0]).castShadow = false;
+  let swirl = null;
+  let trophy = null;
+  if (w < WORLDS.length - 1) {
+    const next = WORLDS[w + 1];
+    part(portal, GEO.torus, std(next.accent, { metalness: 0.8, roughness: 0.2 }), [0, 4.8, 0], [4.2, 4.2, 4.5]);
+    swirl = new THREE.Mesh(own(new THREE.CircleGeometry(4, 48)), own(swirlMaterial(next.accent)));
+    swirl.position.y = 4.8;
+    portal.add(swirl);
+    const sign = signBoard([
+      { text: `WORLD ${w + 2}`, size: 54, color: hex(next.accent) },
+      { text: next.name, size: 92 },
+      { text: `${money(zoneCost(zoneIndex(w + 1, 0)))} · ${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}`, size: 66, color: "#fbbf24" },
+    ], 13, 4.6, next.accent);
+    sign.position.y = 11.6;
+    portal.add(sign);
+  } else {
+    trophy = trophyModel();
+    trophy.scale.setScalar(1.4);
+    trophy.position.y = 0.4;
+    portal.add(trophy);
+    const sign = signBoard([
+      { text: "THE CHAMPIONSHIP", size: 70, color: "#fbbf24" },
+      { text: "Win the Trophy", size: 92 },
+      { text: money(TROPHY_COST), size: 72, color: "#fbbf24" },
+    ], 13, 4.6, 0xfbbf24);
+    sign.position.y = 11.6;
+    portal.add(sign);
+  }
+  portal.visible = openZonesHere() === 3;
+  root.add(portal);
+
+  const flyerPool = [];
+  for (let i = 0; i < 18; i++) {
+    const mesh = new THREE.Group();
+    addBall(mesh, def.ball, [0, 0, 0], def.ball === "puck" ? 0.22 : 0.2, rand);
+    mesh.visible = false;
+    root.add(mesh);
+    flyerPool.push(mesh);
+  }
+
+  world = { index: w, def, root, nodes, gates, portal, swirl, trophy, pads, crowd, flyerPool, flyers: [], gateMat, hype: 0 };
+}
+
+// =====================================================================
+// Player movement, animation and swinging
+// =====================================================================
 
 let player;
-
-function makePlayer() {
-  const root = new THREE.Group();
-  const body = new THREE.Group();
-  root.add(body);
-  function limb(w, h, color, x, y) {
-    const pivot = new THREE.Group();
-    pivot.position.set(x, y, 0);
-    const mesh = box(w, h, w, color);
-    mesh.position.y = -h / 2;
-    pivot.add(mesh);
-    body.add(pivot);
-    return pivot;
-  }
-  const legL = limb(0.55, 1.3, 0x4caa3c, -0.3, 1.3);
-  const legR = limb(0.55, 1.3, 0x4caa3c, 0.3, 1.3);
-  const armL = limb(0.48, 1.25, 0xf5cd30, -0.86, 2.55);
-  const armR = limb(0.48, 1.25, 0xf5cd30, 0.86, 2.55);
-  const torso = box(1.2, 1.3, 0.6, 0x1f6fd1);
-  torso.position.y = 1.95;
-  const head = box(0.85, 0.85, 0.85, 0xf5cd30);
-  head.position.y = 3.05;
-  const eyeL = box(0.12, 0.2, 0.04, INK);
-  eyeL.position.set(-0.18, 3.12, 0.43);
-  const eyeR = box(0.12, 0.2, 0.04, INK);
-  eyeR.position.set(0.18, 3.12, 0.43);
-  const mouth = box(0.34, 0.06, 0.04, INK);
-  mouth.position.set(0, 2.88, 0.43);
-  body.add(torso, head, eyeL, eyeR, mouth);
-
-  const tool = new THREE.Group();
-  tool.position.y = -1.15;
-  armR.add(tool);
-
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.9, 24),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }),
-  );
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.28;
-
-  root.position.set(0, 0, 26);
-  body.rotation.y = Math.PI;
-  scene.add(root, shadow);
-  return { root, body, legL, legR, armL, armR, tool, shadow, vy: 0, facing: Math.PI, swingT: 1, walkT: 0 };
-}
-
-function buildTool() {
-  player.tool.clear();
-  const size = 0.28 + state.tool * 0.08;
-  const handle = box(0.16, 0.16, 1.3, 0x7a4a24);
-  handle.position.z = 0.55;
-  const head = box(size, size, size * 1.6, TOOLS[state.tool].color);
-  head.position.z = 1.2 + size * 0.5;
-  player.tool.add(handle, head);
-}
-
-// Arm angle over one swing: wind up over the head, then strike down in front.
-function swingAngle(t) {
-  return t < 0.35 ? -0.4 - 2.4 * (t / 0.35) : -2.8 + 2.6 * ((t - 0.35) / 0.65);
-}
-
 const keys = new Set();
 const GAME_KEYS = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]);
 addEventListener("keydown", e => {
+  sound.unlock();
   if (!GAME_KEYS.has(e.code)) return;
   e.preventDefault();
   keys.add(e.code);
@@ -639,10 +1865,11 @@ addEventListener("keyup", e => keys.delete(e.code));
 addEventListener("blur", () => keys.clear());
 const held = (...codes) => codes.some(code => keys.has(code));
 
-const minZ = () => ZONES[state.zones - 1].zEnd + 0.9;
+const minZ = () => (openZonesHere() < 3 ? ZONE_START[openZonesHere()] + 0.9 : END_Z + 0.9);
 
 function updatePlayer(dt) {
-  const p = player.root.position;
+  const P = player;
+  const p = P.root.position;
   const forward = held("KeyW", "ArrowUp") - held("KeyS", "ArrowDown");
   const strafe = held("KeyD", "ArrowRight") - held("KeyA", "ArrowLeft");
   const fx = -Math.sin(cam.yaw);
@@ -650,21 +1877,32 @@ function updatePlayer(dt) {
   let mx = fx * forward - fz * strafe;
   let mz = fz * forward + fx * strafe;
   const len = Math.hypot(mx, mz);
-  const moving = len > 0;
-  if (moving) {
-    mx /= len;
-    mz /= len;
-    p.x += mx * SPEED * dt;
-    p.z += mz * SPEED * dt;
-    if (player.swingT >= 1) player.facing = Math.atan2(mx, mz);
+  if (len > 0) { mx /= len; mz /= len; }
+  P.velocity.x = damp(P.velocity.x, mx * SPEED, 12, dt);
+  P.velocity.z = damp(P.velocity.z, mz * SPEED, 12, dt);
+  p.x += P.velocity.x * dt;
+  p.z += P.velocity.z * dt;
+  const speed = Math.hypot(P.velocity.x, P.velocity.z);
+  const moving = speed > 1;
+  if (len > 0 && P.swingT >= 1) P.facing = Math.atan2(mx, mz);
+
+  const grounded = p.y === 0;
+  if (held("Space") && grounded) {
+    P.velocity.y = JUMP;
+    sound.play("jump");
+  }
+  P.velocity.y -= GRAVITY * dt;
+  p.y = Math.max(0, p.y + P.velocity.y * dt);
+  if (p.y === 0) {
+    if (!grounded && P.velocity.y < -8) {
+      P.land = 1;
+      sound.play("land");
+      particles.burst(new THREE.Vector3(p.x, 0.1, p.z), { count: 10, colors: [0xd6d3d1, 0xa8a29e], speed: 4, up: 1.5, gravity: 4, life: 0.5, size: 0.18 });
+    }
+    P.velocity.y = 0;
   }
 
-  if (held("Space") && p.y === 0) player.vy = JUMP;
-  player.vy -= GRAVITY * dt;
-  p.y = Math.max(0, p.y + player.vy * dt);
-  if (p.y === 0) player.vy = 0;
-
-  for (const n of nodes) {
+  for (const n of world.nodes) {
     if (n.respawn > 0) continue;
     const dx = p.x - n.x;
     const dz = p.z - n.z;
@@ -675,110 +1913,405 @@ function updatePlayer(dt) {
       p.z = n.z + (dz / d) * min;
     }
   }
-  p.x = clamp(p.x, -HALF_WIDTH + 0.9, HALF_WIDTH - 0.9);
-  p.z = clamp(p.z, minZ(), ZONES[0].zStart - 0.9);
+  p.x = clamp(p.x, -HALF + 0.9, HALF - 0.9);
+  p.z = clamp(p.z, minZ(), BACK_Z - 0.9);
 
-  const turn = Math.atan2(Math.sin(player.facing - player.body.rotation.y), Math.cos(player.facing - player.body.rotation.y));
-  player.body.rotation.y += turn * (1 - Math.exp(-dt * 14));
+  const turn = Math.atan2(Math.sin(P.facing - P.body.rotation.y), Math.cos(P.facing - P.body.rotation.y));
+  P.body.rotation.y += turn * (1 - Math.exp(-dt * 14));
+  animatePlayer(dt, moving, p.y > 0, speed);
+}
 
-  player.walkT = moving && p.y === 0 ? player.walkT + dt * 10 : 0;
-  const stride = Math.sin(player.walkT) * 0.7;
-  player.legL.rotation.x = stride;
-  player.legR.rotation.x = -stride;
-  player.armL.rotation.x = -stride;
-  player.swingT = Math.min(1, player.swingT + dt / SWING_TIME);
-  player.armR.rotation.x = player.swingT < 1 ? swingAngle(player.swingT) : -0.4 + stride * 0.4;
+function animatePlayer(dt, moving, airborne, speed) {
+  const P = player;
+  P.run = damp(P.run, moving && !airborne ? 1 : 0, 10, dt);
+  P.air = damp(P.air, airborne ? 1 : 0, 14, dt);
+  P.land = Math.max(0, P.land - dt * 5);
+  P.phase += dt * speed * 0.85;
+  const s = Math.sin(P.phase);
+  const c = Math.cos(P.phase);
+  const breathe = Math.sin(clock * 2.2);
+  const { run, air } = P;
 
-  player.shadow.position.x = p.x;
-  player.shadow.position.z = p.z;
-  player.shadow.scale.setScalar(1 - Math.min(p.y / 8, 0.5));
+  if (moving && !airborne && Math.floor(P.phase / Math.PI) !== P.lastStep) {
+    P.lastStep = Math.floor(P.phase / Math.PI);
+    sound.play("step");
+  }
+
+  P.legL.hip.rotation.x = -s * 0.75 * run - 0.7 * air;
+  P.legR.hip.rotation.x = s * 0.75 * run - 0.2 * air;
+  P.legL.knee.rotation.x = run * (0.15 + Math.max(0, c) * 1.1) + 1.1 * air;
+  P.legR.knee.rotation.x = run * (0.15 + Math.max(0, -c) * 1.1) + 0.5 * air;
+  for (const [a, swingSign, side] of [[P.armL, 1, -1], [P.armR, -1, 1]]) {
+    a.shoulder.rotation.x = swingSign * s * 0.7 * run + breathe * 0.03 - 1.0 * air;
+    a.shoulder.rotation.z = side * (0.08 + 0.55 * air);
+    a.elbow.rotation.x = -(0.25 + 0.55 * run);
+  }
+  P.torso.rotation.x = 0.12 * run;
+  P.torso.rotation.y = s * 0.1 * run;
+  P.torso.scale.y = 1 + breathe * 0.012 * (1 - run);
+  P.hips.position.y = 1.0 + Math.abs(c) * 0.07 * run - P.land * 0.18;
+  P.hips.rotation.y = -s * 0.08 * run;
+  P.neck.rotation.x = -0.1 * run;
+
+  P.swingT = Math.min(1, P.swingT + dt / SWING_TIME);
+  if (P.swingT < 1) {
+    const t = P.swingT;
+    let shoulder, twist, elbow;
+    if (t < 0.3) {
+      const k = smooth(t / 0.3);
+      shoulder = lerp(-0.3, -2.8, k); twist = lerp(0, 0.6, k); elbow = lerp(-0.5, -0.9, k);
+    } else if (t < 0.55) {
+      const k = smooth((t - 0.3) / 0.25);
+      shoulder = lerp(-2.8, -0.25, k); twist = lerp(0.6, -0.55, k); elbow = lerp(-0.9, -0.1, k);
+    } else {
+      const k = smooth((t - 0.55) / 0.45);
+      shoulder = lerp(-0.25, -0.3, k); twist = lerp(-0.55, 0, k); elbow = lerp(-0.1, -0.5, k);
+    }
+    P.armR.shoulder.rotation.x = shoulder;
+    P.armR.shoulder.rotation.z = 0.15;
+    P.armR.elbow.rotation.x = elbow;
+    P.torso.rotation.y = twist;
+  }
+  P.bagPunch = Math.max(0, P.bagPunch - dt * 6);
+  P.bag.scale.setScalar(1 + P.bagPunch * 0.18);
+}
+
+function nearestNode() {
+  const p = player.root.position;
+  let best = null;
+  let bestGap = REACH;
+  for (const n of world.nodes) {
+    if (n.respawn > 0 || n.k >= openZonesHere()) continue;
+    const gap = Math.hypot(n.x - p.x, n.z - p.z) - n.radius;
+    if (gap < bestGap) { best = n; bestGap = gap; }
+  }
+  return best;
 }
 
 function swing() {
   if (player.swingT < 1) return;
   player.swingT = 0;
+  sound.play("swing");
   const node = nearestNode();
-  if (!node || state.brainrot >= capacity()) return;
+  if (!node) return;
+  if (state.bagCount >= capacity()) {
+    sound.play("full");
+    return;
+  }
   const p = player.root.position;
   player.facing = Math.atan2(node.x - p.x, node.z - p.z);
-  const gain = Math.min(
-    Math.round(TOOLS[state.tool].power * NODE_TYPES[node.type].value * multiplier()),
-    capacity() - state.brainrot,
-  );
-  state.brainrot += gain;
+  setTimeout(() => hit(node), SWING_TIME * 450);
+}
+
+function hit(node) {
+  if (node.respawn > 0) return;
+  const zone = zoneIndex(world.index, node.k);
+  const balls = Math.min(gearPower(state.gear), capacity() - state.bagCount);
+  if (balls === 0) return;
+  state.bagCount += balls;
+  state.bagValue += balls * ballValue(zone) * cashBoost();
   node.punch = 1;
-  popup(`+${fmt(gain)}`, node.x, 3, node.z, "brain");
-  node.hitsLeft--;
-  if (node.hitsLeft === 0) {
+  node.hits--;
+  sound.play("hit");
+  const top = new THREE.Vector3(node.x, node.kind === "giant" ? 2.8 : 1.6, node.z);
+  particles.burst(top, { count: 8, colors: [0xffffff, 0xfde68a], speed: 5, up: 3, life: 0.4, size: 0.12 });
+  popup(`+${fmt(balls)} ${world.def.icon}`, top.x, top.y + 1, top.z, "info");
+  launchFlyers(top, Math.min(balls, 5));
+  if (node.hits === 0) {
     node.respawn = RESPAWN_TIME;
-    node.group.visible = false;
+    node.breakT = 0;
+    sound.play("break");
+    particles.burst(top, { count: 22, colors: [world.def.accent, 0xffffff, 0xfbbf24], speed: 7, up: 6, life: 0.9, size: 0.2 });
+    shake = 0.35;
   }
   refreshHud();
+}
+
+function launchFlyers(from, count) {
+  for (let i = 0; i < count; i++) {
+    const mesh = world.flyerPool.find(m => !m.visible);
+    if (!mesh) return;
+    mesh.visible = true;
+    mesh.position.copy(from);
+    world.flyers.push({ mesh, from: from.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 1.2)), t: -i * 0.06, index: i });
+  }
+}
+
+const bagWorld = new THREE.Vector3();
+function updateFlyers(dt) {
+  player.bag.getWorldPosition(bagWorld);
+  world.flyers = world.flyers.filter(f => {
+    f.t += dt / 0.42;
+    if (f.t < 0) return true;
+    if (f.t >= 1) {
+      f.mesh.visible = false;
+      player.bagPunch = 1;
+      sound.play("collect", f.index);
+      return false;
+    }
+    const t = f.t;
+    f.mesh.position.lerpVectors(f.from, bagWorld, t);
+    f.mesh.position.y += Math.sin(t * Math.PI) * 2.2;
+    f.mesh.rotation.x += dt * 12;
+    f.mesh.scale.setScalar(1 - t * 0.5);
+    return true;
+  });
+}
+
+function updateNodes(dt) {
+  for (const n of world.nodes) {
+    if (n.respawn > 0) {
+      n.respawn -= dt;
+      n.breakT = Math.min(1, n.breakT + dt * 5);
+      n.group.scale.setScalar(Math.max(0.001, 1 - n.breakT));
+      n.group.rotation.y += dt * 8 * (1 - n.breakT);
+      if (n.respawn <= 0) {
+        n.hits = NODE_SPEC[n.kind].hits;
+        n.grow = 0;
+      }
+      continue;
+    }
+    n.punch = Math.max(0, n.punch - dt * 4);
+    n.grow = Math.min(1, n.grow + dt * 2.5);
+    const pop = n.grow < 1 ? easeOutBack(n.grow) : 1;
+    const squash = Math.sin(n.punch * Math.PI) * 0.18;
+    n.group.scale.set(pop * (1 + squash), pop * (1 - squash), pop * (1 + squash));
+  }
 }
 
 function sell() {
   const p = player.root.position;
-  popup(`+${fmt(state.brainrot)} Aura`, p.x, p.y + 4.5, p.z, "aura");
-  state.aura += state.brainrot;
-  state.brainrot = 0;
+  popup(`+${money(state.bagValue)}`, p.x, p.y + 4.4, p.z, "cashpop");
+  flyCoins(p);
+  sound.play("sell");
+  particles.burst(new THREE.Vector3(p.x, 2.5, p.z), { count: 18, colors: [0x22c55e, 0xfbbf24, 0xffffff], speed: 5, up: 7, life: 1, size: 0.18 });
+  state.cash += state.bagValue;
+  state.bagCount = 0;
+  state.bagValue = 0;
+  world.hype = Math.max(world.hype, 0.4);
   refreshHud();
 }
 
-// ---------- Pets ----------
+// =====================================================================
+// Pets that follow the player
+// =====================================================================
 
-let petMeshes = [];
+let followers = [];
+const FOLLOW_SLOTS = [[-1.5, -2.3], [1.5, -2.3], [-1.6, -4], [1.6, -4]];
 
-function buildPets() {
-  for (const group of petMeshes) scene.remove(group);
+function buildFollowers() {
+  followers.forEach(f => scene.remove(f.group));
   const p = player.root.position;
-  petMeshes = equippedPets().map(pet => {
+  followers = equippedPets().map((pet, i) => {
     const group = new THREE.Group();
-    const body = box(0.9, 0.8, 0.9, pet.color);
-    const eyeL = box(0.14, 0.2, 0.04, INK);
-    eyeL.position.set(-0.2, 0.1, 0.46);
-    const eyeR = box(0.14, 0.2, 0.04, INK);
-    eyeR.position.set(0.2, 0.1, 0.46);
-    group.add(body, eyeL, eyeR);
-    if (pet.rarity === "Legendary" || pet.rarity === "Mythic") {
-      const halo = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.06, 8, 20), glowMat(0xffd23f, 0.8));
-      halo.rotation.x = Math.PI / 2;
-      halo.position.y = 0.7;
-      group.add(halo);
-    }
-    group.position.set(p.x, 1, p.z);
+    const model = petTemplate(pet).clone();
+    group.add(model);
+    group.position.set(p.x, 0, p.z);
     scene.add(group);
-    return group;
+    return { pet, group, model, hop: Math.random() * 6, slot: FOLLOW_SLOTS[i] };
   });
 }
 
-function updatePets(dt, time) {
+function updateFollowers(dt) {
   const p = player.root.position;
-  const follow = 1 - Math.exp(-dt * 6);
-  petMeshes.forEach((group, i) => {
-    const angle = player.facing + Math.PI + (i - (petMeshes.length - 1) / 2) * 0.7;
-    group.position.x += (p.x + Math.sin(angle) * 2.8 - group.position.x) * follow;
-    group.position.z += (p.z + Math.cos(angle) * 2.8 - group.position.z) * follow;
-    group.position.y = p.y + 1.1 + Math.sin(time * 4 + i) * 0.2;
-    group.rotation.y = player.facing;
-  });
+  const sinF = Math.sin(player.facing);
+  const cosF = Math.cos(player.facing);
+  for (const f of followers) {
+    const [sx, sz] = f.slot;
+    const tx = p.x + sx * cosF + sz * sinF;
+    const tz = p.z - sx * sinF + sz * cosF;
+    const dx = tx - f.group.position.x;
+    const dz = tz - f.group.position.z;
+    const dist = Math.hypot(dx, dz);
+    f.group.position.x = damp(f.group.position.x, tx, 5, dt);
+    f.group.position.z = damp(f.group.position.z, tz, 5, dt);
+    const moving = dist > 0.4;
+    f.hop += dt * (moving ? 11 : 3);
+    const hop = Math.abs(Math.sin(f.hop));
+    f.group.position.y = moving ? hop * 0.55 : 0.05 + Math.sin(f.hop) * 0.04;
+    f.model.scale.set(1 + (moving ? (1 - hop) * 0.12 : 0), 1 - (moving ? (1 - hop) * 0.12 : 0), 1);
+    const want = moving ? Math.atan2(dx, dz) : player.facing;
+    const turn = Math.atan2(Math.sin(want - f.group.rotation.y), Math.cos(want - f.group.rotation.y));
+    f.group.rotation.y += turn * (1 - Math.exp(-dt * 8));
+  }
 }
 
 function rollPet() {
   let roll = Math.random() * 100;
-  for (const pet of PETS) {
-    roll -= pet.chance;
-    if (roll < 0) return pet;
-  }
-  throw new Error("Pet chances must add up to 100");
+  const rarity = RARITIES.findIndex(r => (roll -= r.chance) < 0);
+  if (rarity < 0) throw new Error("Rarity chances must add up to 100");
+  return PETS.find(p => p.world === state.world && p.rarity === rarity);
 }
 
-// ---------- Camera ----------
+// =====================================================================
+// Showcase renderer: shop thumbnails and the egg-hatch scene
+// =====================================================================
 
-const cam = { yaw: 0, pitch: 0.42, dist: 15 };
+// One WebGL context only: a second context made every frame far slower.
+const showcase = (() => {
+  const sc = new THREE.Scene();
+  sc.environment = scene.environment;
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x334155, 0.8));
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  key.position.set(3, 5, 4);
+  sc.add(key);
+  const cam = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  const stage = new THREE.Group();
+  sc.add(stage);
+  const dimScene = new THREE.Scene();
+  dimScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x040918, transparent: true, opacity: 0.72, depthTest: false, depthWrite: false, toneMapped: false })));
+  const dimCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  return { scene: sc, camera: cam, stage, dimScene, dimCamera, particles: new Particles(sc, 200) };
+})();
+
+const thumbs = { gear: [], bag: [], pet: [], egg: [] };
+function renderThumb(object, tilt = 0.5) {
+  const s = showcase;
+  s.camera.aspect = 1;
+  s.camera.updateProjectionMatrix();
+  const holder = new THREE.Group();
+  holder.add(object);
+  holder.rotation.y = tilt;
+  s.stage.add(holder);
+  const box = new THREE.Box3().setFromObject(holder);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const dist = (Math.max(size.x, size.y, size.z) / 2 / Math.tan((s.camera.fov * Math.PI) / 360)) * 1.25;
+  s.camera.position.set(center.x, center.y + dist * 0.25, center.z + dist);
+  s.camera.lookAt(center);
+  renderer.render(s.scene, s.camera);
+  const url = canvas.toDataURL();
+  s.stage.remove(holder);
+  return url;
+}
+function buildThumbnails() {
+  renderer.setSize(160, 160, false);
+  renderer.setClearColor(0x1a2a52);
+  GEAR.forEach(gear => {
+    const model = gearModel(gear);
+    model.rotation.z = -0.7;
+    thumbs.gear.push(renderThumb(model, 0.3));
+  });
+  BAGS.forEach(bag => thumbs.bag.push(renderThumb(bagModel(bag.tier), 0.6)));
+  PETS.forEach(pet => thumbs.pet.push(renderThumb(petTemplate(pet).clone(), 0.45)));
+  WORLDS.forEach((def, w) => thumbs.egg.push(renderThumb(eggModel(w, false).group, 0.3)));
+}
+
+let hatchFx = null;
+const CRACK_T = 1.9;
+const TICK_TIMES = [0.45, 0.75, 1.0, 1.2, 1.36, 1.5, 1.62, 1.72, 1.8];
+
+function startHatch(pets) {
+  const s = showcase;
+  closeHatch();
+  s.camera.aspect = innerWidth / innerHeight;
+  s.camera.updateProjectionMatrix();
+  s.camera.position.set(0, 1.1, pets.length > 1 ? 10 : 6.5);
+  s.camera.lookAt(0, 0.8, 0);
+  hatchFx = {
+    t: 0,
+    ticks: 0,
+    cracked: false,
+    items: pets.map((pet, i) => {
+      const x = (i - (pets.length - 1) / 2) * 2.7;
+      const egg = eggModel(state.world, true);
+      egg.group.position.x = x;
+      egg.group.scale.setScalar(0.001);
+      s.stage.add(egg.group);
+      const petObj = petTemplate(pet).clone();
+      petObj.position.set(x, 0, 0);
+      petObj.scale.setScalar(0.001);
+      s.stage.add(petObj);
+      return { pet, x, egg, petObj, vTop: new THREE.Vector3((Math.random() - 0.5) * 3, 5, 2), vBottom: new THREE.Vector3((Math.random() - 0.5) * 2, 1.5, 1) };
+    }),
+  };
+  $("hatch-info").innerHTML = "";
+  $("hatch-hint").hidden = true;
+  $("hatch").hidden = false;
+  document.body.classList.add("hatching");
+}
+
+function updateHatch(dt) {
+  const h = hatchFx;
+  const s = showcase;
+  h.t += dt;
+  const t = h.t;
+  while (!h.cracked && h.ticks < TICK_TIMES.length && t >= TICK_TIMES[h.ticks]) sound.play("tick", h.ticks++);
+  if (!h.cracked && t >= CRACK_T) {
+    h.cracked = true;
+    flash();
+    sound.play("crack");
+    const best = Math.max(...h.items.map(it => it.pet.rarity));
+    setTimeout(() => sound.play("reveal", best), 150);
+    if (best >= 3) sound.play("cheer");
+    for (const it of h.items) {
+      s.particles.burst(new THREE.Vector3(it.x, 0.9, 0), { count: 30 + it.pet.rarity * 10, colors: [RARITY_HEX[it.pet.rarity], 0xffffff, 0xfbbf24], speed: 4, up: 5, gravity: 7, life: 1.4, size: 0.12 });
+    }
+    $("hatch-info").innerHTML = h.items.map(it => `
+      <div class="reveal">
+        <span class="rarity r${it.pet.rarity}">${RARITIES[it.pet.rarity].name}</span>
+        <span class="pet-name r${it.pet.rarity}">${it.pet.name}</span>
+        <span class="sub">${pct(it.pet.bonus)} cash</span>
+      </div>`).join("");
+  }
+  if (h.cracked && t > CRACK_T + 0.8) $("hatch-hint").hidden = false;
+  if (t > CRACK_T + 5) { closeHatch(); return; }
+  for (const it of h.items) {
+    if (!h.cracked) {
+      const pop = Math.min(1, t / 0.35);
+      const shake = clamp((t - 0.35) / 1.5, 0, 1);
+      it.egg.group.scale.setScalar(Math.max(0.001, easeOutBack(pop)) * 1.5);
+      it.egg.group.rotation.z = t > 0.35 ? Math.sin(t * (10 + shake * 20) + it.x) * (0.04 + shake * 0.3) : 0;
+      it.egg.group.position.y = Math.abs(Math.sin(t * (6 + shake * 10))) * 0.1 * shake;
+    } else {
+      const ct = t - CRACK_T;
+      it.vTop.y -= 14 * dt;
+      it.vBottom.y -= 14 * dt;
+      it.egg.top.position.addScaledVector(it.vTop, dt);
+      it.egg.bottom.position.addScaledVector(it.vBottom, dt);
+      it.egg.top.rotation.x += dt * 7;
+      it.egg.bottom.rotation.z += dt * 3;
+      it.egg.material.opacity = Math.max(0, 1 - ct / 0.5);
+      const grow = Math.min(1, ct / 0.5);
+      it.petObj.scale.setScalar(Math.max(0.001, easeOutBack(grow)) * 1.2);
+      it.petObj.rotation.y = (1 - smooth(Math.min(1, ct / 0.8))) * -Math.PI * 2 + Math.sin(t * 1.6) * 0.35;
+      it.petObj.position.y = Math.abs(Math.sin(t * 3)) * 0.15;
+    }
+  }
+  s.particles.update(dt);
+  renderer.autoClear = false;
+  renderer.render(s.dimScene, s.dimCamera);
+  renderer.clearDepth();
+  renderer.render(s.scene, s.camera);
+  renderer.autoClear = true;
+}
+
+function closeHatch() {
+  if (!hatchFx) return;
+  for (const it of hatchFx.items) {
+    showcase.stage.remove(it.egg.group, it.petObj);
+    it.egg.material.dispose();
+  }
+  hatchFx = null;
+  $("hatch").hidden = true;
+  document.body.classList.remove("hatching");
+}
+$("hatch").addEventListener("click", () => {
+  if (hatchFx && hatchFx.cracked) closeHatch();
+});
+
+// =====================================================================
+// Camera and pointer input
+// =====================================================================
+
+const cam = { yaw: 0, pitch: 0.38, dist: 16 };
 const camTarget = new THREE.Vector3();
+const camGoal = new THREE.Vector3();
 let drag = null;
+let shake = 0;
 
 canvas.addEventListener("pointerdown", e => {
+  sound.unlock();
   drag = { x: e.clientX, y: e.clientY, moved: false };
   canvas.setPointerCapture(e.pointerId);
 });
@@ -791,7 +2324,7 @@ canvas.addEventListener("pointermove", e => {
   drag.x = e.clientX;
   drag.y = e.clientY;
   cam.yaw -= dx * 0.006;
-  cam.pitch = clamp(cam.pitch + dy * 0.005, 0.12, 1.3);
+  cam.pitch = clamp(cam.pitch + dy * 0.005, 0.08, 1.3);
 });
 canvas.addEventListener("pointerup", () => {
   if (drag && !drag.moved) swing();
@@ -800,208 +2333,442 @@ canvas.addEventListener("pointerup", () => {
 canvas.addEventListener("pointercancel", () => { drag = null; });
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
-  cam.dist = clamp(cam.dist + e.deltaY * 0.02, 7, 32);
+  cam.dist = clamp(cam.dist + e.deltaY * 0.02, 7, 34);
 }, { passive: false });
 
-function updateCamera() {
+function updateCamera(dt, snap = false) {
   const p = player.root.position;
-  camTarget.set(p.x, p.y + 2.4, p.z);
+  camTarget.set(p.x, p.y * 0.6 + 2.3, p.z);
   const flat = Math.cos(cam.pitch) * cam.dist;
-  camera.position.set(p.x + Math.sin(cam.yaw) * flat, camTarget.y + Math.sin(cam.pitch) * cam.dist, p.z + Math.cos(cam.yaw) * flat);
+  camGoal.set(p.x + Math.sin(cam.yaw) * flat, camTarget.y + Math.sin(cam.pitch) * cam.dist, p.z + Math.cos(cam.yaw) * flat);
+  let boom = 1;
+  const keepInside = (value, lo, hi, base) => {
+    if (value > hi) boom = Math.min(boom, (hi - base) / (value - base));
+    if (value < lo) boom = Math.min(boom, (lo - base) / (value - base));
+  };
+  keepInside(camGoal.x, -HALF + 0.5, HALF - 0.5, camTarget.x);
+  keepInside(camGoal.z, END_Z + 0.5, BACK_Z - 0.5, camTarget.z);
+  camGoal.lerpVectors(camTarget, camGoal, boom);
+  if (snap) camera.position.copy(camGoal);
+  else camera.position.lerp(camGoal, 1 - Math.exp(-dt * 12));
+  shake = Math.max(0, shake - dt * 2.5);
+  camera.position.x += (Math.random() - 0.5) * shake * 0.5;
+  camera.position.y += (Math.random() - 0.5) * shake * 0.5;
   camera.lookAt(camTarget);
+  sky.position.copy(camera.position);
+  sun.position.copy(p).add(SUN_OFFSET);
+  sun.target.position.copy(p);
 }
 
-// ---------- HUD ----------
+// =====================================================================
+// HUD
+// =====================================================================
 
-const $ = id => document.getElementById(id);
-const $aura = $("aura"), $bagFill = $("bag-fill"), $bagText = $("bag-text"), $full = $("full");
-const $auto = $("auto"), $pets = $("pets"), $toast = $("toast"), $panel = $("panel"), $hatch = $("hatch"), $pops = $("pops");
+const RARITY_HEX = [0xcbd5e1, 0x4ade80, 0x38bdf8, 0xc084fc, 0xfbbf24];
+let shownCash = state.cash;
 
 function refreshHud() {
-  $aura.textContent = fmt(state.aura);
-  $bagText.textContent = `${fmt(state.brainrot)} / ${fmt(capacity())} Brainrot`;
-  $bagFill.style.width = `${(100 * state.brainrot) / capacity()}%`;
-  $full.hidden = state.brainrot < capacity();
-  $auto.textContent = `Auto Swing: ${state.auto ? "On" : "Off"}`;
-  $auto.classList.toggle("off", !state.auto);
-  $pets.textContent = `Pets x${multiplier().toFixed(1)}`;
+  $("bag-text").textContent = `${fmt(state.bagCount)} / ${fmt(capacity())} ${world.def.icon}`;
+  $("bag-fill").style.width = `${(100 * state.bagCount) / capacity()}%`;
+  $("bag-worth").textContent = money(state.bagValue);
+  $("boost").textContent = boostText(cashBoost());
+  $("full").hidden = state.bagCount < capacity();
+  $("auto").textContent = `Auto Swing: ${state.auto ? "On" : "Off"}`;
+  $("auto").classList.toggle("off", !state.auto);
+  $("pets").textContent = `Pets ${boostText(petBoost())}`;
+  $("rebirth").textContent = state.rebirths ? `Rebirth (${state.rebirths})` : "Rebirth";
+  $("place-world").textContent = `${world.def.icon} ${world.def.name}`;
+  $("place-zone").textContent = `Zone ${currentZone + 1}: ${world.def.zones[currentZone]}`;
   renderPanel();
   dirty = true;
 }
 
+function updateCashDisplay(dt) {
+  if (shownCash === state.cash) return;
+  shownCash = Math.abs(state.cash - shownCash) < Math.max(1, state.cash * 0.002) ? state.cash : damp(shownCash, state.cash, 9, dt);
+  $("cash").textContent = fmt(shownCash);
+}
+
 const projected = new THREE.Vector3();
-function popup(text, x, y, z, kind) {
+function screenOf(x, y, z) {
   projected.set(x, y, z).project(camera);
+  return { x: ((projected.x + 1) / 2) * innerWidth, y: ((1 - projected.y) / 2) * innerHeight };
+}
+function popup(text, x, y, z, kind) {
+  const at = screenOf(x, y, z);
   const el = document.createElement("div");
   el.className = `pop ${kind}`;
   el.textContent = text;
-  el.style.left = `${((projected.x + 1) / 2) * innerWidth}px`;
-  el.style.top = `${((1 - projected.y) / 2) * innerHeight}px`;
+  el.style.left = `${at.x}px`;
+  el.style.top = `${at.y}px`;
   el.addEventListener("animationend", () => el.remove());
-  $pops.append(el);
+  $("fx").append(el);
 }
-
+function flyCoins(p) {
+  const from = screenOf(p.x, p.y + 2.5, p.z);
+  const target = $("cash").getBoundingClientRect();
+  for (let i = 0; i < 8; i++) {
+    const el = document.createElement("div");
+    el.className = "coin-fly";
+    el.textContent = "$";
+    el.style.left = `${from.x + (Math.random() - 0.5) * 60}px`;
+    el.style.top = `${from.y + (Math.random() - 0.5) * 40}px`;
+    el.style.transitionDelay = `${i * 45}ms`;
+    $("fx").append(el);
+    el.getBoundingClientRect();
+    el.style.transform = `translate(${target.left + 20 - parseFloat(el.style.left)}px, ${target.top + 16 - parseFloat(el.style.top)}px) scale(0.7)`;
+    el.style.opacity = "0.4";
+    el.addEventListener("transitionend", () => el.remove(), { once: true });
+  }
+  setTimeout(() => {
+    $("cash").classList.remove("bump");
+    void $("cash").offsetWidth;
+    $("cash").classList.add("bump");
+  }, 700);
+}
 let toastTimer;
-function showToast(text) {
-  $toast.textContent = text;
-  $toast.classList.add("show");
+function toast(kicker, title) {
+  $("toast-kicker").textContent = kicker;
+  $("toast-title").textContent = title;
+  $("toast").classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $toast.classList.remove("show"), 2000);
+  toastTimer = setTimeout(() => $("toast").classList.remove("show"), 2400);
+}
+function flash() {
+  $("flash").classList.remove("go");
+  void $("flash").offsetWidth;
+  $("flash").classList.add("go");
+}
+function confetti(x, y, z, count = 60) {
+  particles.burst(new THREE.Vector3(x, y, z), { count, colors: [0xef4444, 0xfbbf24, 0x22c55e, 0x3b82f6, 0xa855f7, 0xffffff], speed: 9, up: 10, gravity: 9, life: 2, size: 0.25 });
 }
 
-$auto.addEventListener("click", () => {
+const SPEAKER_ON = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+const SPEAKER_OFF = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+function refreshMute() {
+  $("mute").innerHTML = state.muted ? SPEAKER_OFF : SPEAKER_ON;
+  $("mute").setAttribute("aria-label", state.muted ? "Turn sound on" : "Turn sound off");
+}
+$("mute").addEventListener("click", () => {
+  state.muted = !state.muted;
+  refreshMute();
+  dirty = true;
+});
+$("auto").addEventListener("click", () => {
   state.auto = !state.auto;
+  sound.play("click");
   refreshHud();
 });
-$pets.addEventListener("click", () => (panelKind === "pets" ? closePanel() : openPanel("pets")));
+$("pets").addEventListener("click", () => togglePanel("pets"));
+$("rebirth").addEventListener("click", () => togglePanel("rebirth"));
+document.addEventListener("pointerdown", () => sound.unlock());
 
-// ---------- Panels ----------
+// =====================================================================
+// Panels
+// =====================================================================
 
 let panelKind = null;
 let panelHtml = "";
+let shopTab = "gear";
 
-function row(name, sub, right, rarity) {
-  const color = rarity ? ` r-${rarity.toLowerCase()}` : "";
-  return `<div class="row"><div><div class="name${color}">${name}</div><div class="sub">${sub}</div></div>${right}</div>`;
-}
-function ownedOrBuy(i, current, cost, action) {
-  if (i === current) return `<span class="tag">Equipped</span>`;
-  if (i < current) return `<span class="tag dim">Owned</span>`;
-  return `<button class="btn" type="button" data-action="${action}" data-arg="${i}"${state.aura < cost ? " disabled" : ""}>${fmt(cost)} Aura</button>`;
+const buyButton = (action, arg, cost, label = money(cost), extra = "") =>
+  `<button class="btn go ${extra}" type="button" data-action="${action}" data-arg="${arg}"${state.cash < cost ? " disabled" : ""}>${label}</button>`;
+
+function shopRow(thumb, name, sub, tier, current, cost, action) {
+  const status = tier === current
+    ? '<span class="tag">Equipped</span>'
+    : tier < current ? '<span class="tag dim">Owned</span>' : buyButton(action, tier, cost);
+  return `<div class="row${tier === current ? " mine" : ""}"><img src="${thumb}" alt=""><div><div class="name">${name}</div><div class="sub">${sub}</div></div>${status}</div>`;
 }
 
 const RENDER = {
   shop: () => `
-    <h2>Shop</h2>
-    <h3>Tools</h3>
-    ${TOOLS.map((t, i) => row(t.name, `Power ${fmt(t.power)}`, ownedOrBuy(i, state.tool, t.cost, "buyTool"))).join("")}
-    <h3>Backpacks</h3>
-    ${BAGS.map((b, i) => row(b.name, `Holds ${fmt(b.capacity)} Brainrot`, ownedOrBuy(i, state.bag, b.cost, "buyBag"))).join("")}`,
-  egg: () => `
-    <h2>Brainrot Egg</h2>
-    <p class="note">Your best ${PETS_EQUIPPED} pets follow you and boost every hit.</p>
-    ${PETS.map(p => row(p.name, `${p.rarity} · ${pct(p.bonus)} Brainrot`, `<span class="tag">${p.chance}%</span>`, p.rarity)).join("")}
-    <button class="btn wide" type="button" data-action="hatch"${state.aura < EGG_COST ? " disabled" : ""}>Hatch for ${EGG_COST} Aura</button>`,
+    <h2>Gear Shop</h2>
+    <div class="tabs">
+      <button class="tab${shopTab === "gear" ? " on" : ""}" type="button" data-action="tab" data-arg="gear">Gear</button>
+      <button class="tab${shopTab === "bags" ? " on" : ""}" type="button" data-action="tab" data-arg="bags">Bags</button>
+    </div>
+    ${shopTab === "gear"
+      ? GEAR.map(g => shopRow(thumbs.gear[g.tier], g.name, `Grabs ${fmt(gearPower(g.tier))} ${g.tier === 0 ? "ball" : "balls"} per hit`, g.tier, state.gear, gearCost(g.tier), "buyGear")).join("")
+      : BAGS.map(b => shopRow(thumbs.bag[b.tier], b.name, `Holds ${fmt(bagCapacity(b.tier))} balls`, b.tier, state.bag, bagCost(b.tier), "buyBag")).join("")}`,
+  egg: () => {
+    const def = WORLDS[state.world];
+    const cost = eggCost(state.world);
+    return `
+      <p class="kicker">World ${state.world + 1} pets</p>
+      <h2>${def.egg}</h2>
+      <p class="note">Pets boost how much cash every ball is worth. Your best ${PETS_EQUIPPED} follow you around.</p>
+      <div class="cards">${PETS.filter(p => p.world === state.world).map(p => `
+        <div class="card">
+          <img src="${thumbs.pet[p.id]}" alt="">
+          <div class="name r${p.rarity}">${p.name}</div>
+          <div class="sub">${RARITIES[p.rarity].name} · ${pct(p.bonus)}</div>
+          <div class="sub"><b>${RARITIES[p.rarity].chance}%</b> chance</div>
+        </div>`).join("")}</div>
+      <div class="buttons">
+        ${buyButton("hatch", 1, cost, `Hatch 1 · ${money(cost)}`)}
+        ${buyButton("hatch", 3, cost * 3, `Hatch 3 · ${money(cost * 3)}`)}
+      </div>`;
+  },
   pets: () => {
-    const owned = PETS.filter(p => state.pets[p.id]).reverse();
     const equipped = equippedPets();
+    const owned = PETS.filter(p => state.pets[p.id]).sort((a, b) => b.bonus - a.bonus);
     const list = owned.length === 0
-      ? `<p class="note">No pets yet. Hatch one at the purple EGGS pad near spawn.</p>`
-      : owned.map(p => row(p.name, `${p.rarity} · ${pct(p.bonus)} · ${equipped.filter(e => e === p).length} equipped`, `<span class="tag">x${state.pets[p.id]}</span>`, p.rarity)).join("");
+      ? '<p class="note">No pets yet. Hatch eggs at the purple EGGS pad near spawn.</p>'
+      : `<div class="cards">${owned.map(p => {
+        const on = equipped.filter(e => e === p).length;
+        return `
+          <div class="card${on ? " equipped" : ""}">
+            <span class="count">x${state.pets[p.id]}</span>
+            <img src="${thumbs.pet[p.id]}" alt="">
+            <div class="name r${p.rarity}">${p.name}</div>
+            <div class="sub">${RARITIES[p.rarity].name} · ${pct(p.bonus)}</div>
+            <div class="sub">${on ? `${on} equipped` : "In storage"}</div>
+          </div>`;
+      }).join("")}</div>`;
     return `
       <h2>Pets</h2>
-      <p class="note">Multiplier <b>x${multiplier().toFixed(1)}</b>. Your best ${PETS_EQUIPPED} pets are equipped automatically.</p>
+      <p class="note">Pet boost <b>${boostText(petBoost())}</b>. Your best ${PETS_EQUIPPED} pets are equipped automatically.</p>
       ${list}`;
   },
-  gate: () => {
-    const zone = ZONES[state.zones];
-    const node = NODE_TYPES[zone.node];
+  rebirth: () => {
+    const cost = rebirthCost(state.rebirths);
+    const next = WORLDS.find(d => d.rebirths > state.rebirths);
     return `
-      <h2>Unlock ${zone.name}</h2>
-      <p class="note">Each hit on a ${node.name} is worth <b>${node.value / NODE_TYPES.rock.value}x</b> a Rizz Rock.</p>
-      <button class="btn wide" type="button" data-action="unlock"${state.aura < zone.cost ? " disabled" : ""}>Unlock for ${fmt(zone.cost)} Aura</button>`;
+      <p class="kicker">Rebirth ${state.rebirths + 1}</p>
+      <h2>Start over stronger</h2>
+      <p class="note">Rebirthing resets your <b>cash, gear and bag</b>. You keep your <b>worlds, zones and pets</b>.</p>
+      <div class="compare">
+        <div>Cash boost now<b>${boostText(rebirthBoost(state.rebirths))}</b></div>
+        <span>→</span>
+        <div>After rebirth<b>${boostText(rebirthBoost(state.rebirths + 1))}</b></div>
+      </div>
+      ${next ? `<p class="note">${next.name} needs <b>${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}</b>. You have ${state.rebirths}.</p>` : ""}
+      ${buyButton("rebirth", 0, cost, `Rebirth for ${money(cost)}`, "gold wide")}`;
   },
+  gate: () => {
+    const k = openZonesHere();
+    const zone = zoneIndex(state.world, k);
+    return `
+      <p class="kicker">Zone ${k + 1}</p>
+      <h2>${world.def.zones[k]}</h2>
+      <p class="note">Every ball here is worth <b>${money(ballValue(zone))}</b>, 3x more than in ${world.def.zones[k - 1]}.</p>
+      ${buyButton("unlock", 0, zoneCost(zone), `Unlock for ${money(zoneCost(zone))}`, "wide")}`;
+  },
+  portal: () => {
+    const w = state.world;
+    if (w === WORLDS.length - 1) {
+      return state.champion
+        ? `<p class="kicker">Champion</p><h2>You are a Sports Legend!</h2>
+           <p class="note">The trophy is yours. Keep rebirthing to grow your cash boost and collect every pet.</p>`
+        : `<p class="kicker">The Championship</p><h2>Win the Trophy</h2>
+           <p class="note">Buy the Championship Trophy to finish the game as a Sports Legend.</p>
+           ${buyButton("champion", 0, TROPHY_COST, `Win it for ${money(TROPHY_COST)}`, "gold wide")}`;
+    }
+    const next = WORLDS[w + 1];
+    if (worldUnlocked(w + 1)) {
+      return `<p class="kicker">World ${w + 2}</p><h2>${next.name}</h2>
+        <button class="btn wide" type="button" data-action="travel" data-arg="${w + 1}">Travel</button>`;
+    }
+    const cost = zoneCost(zoneIndex(w + 1, 0));
+    const ready = state.rebirths >= next.rebirths;
+    return `
+      <p class="kicker">World ${w + 2}</p>
+      <h2>${next.name}</h2>
+      <ul class="reqs">
+        <li><span>Cash</span><span class="${state.cash >= cost ? "ok" : "no"}">${money(cost)}</span></li>
+        <li><span>Rebirths</span><span class="${ready ? "ok" : "no"}">${state.rebirths} / ${next.rebirths}</span></li>
+      </ul>
+      ${ready ? buyButton("unlockWorld", w + 1, cost, "Unlock and travel", "wide") : '<button class="btn wide" type="button" disabled>Rebirth more to unlock</button>'}`;
+  },
+  travel: () => `
+    <h2>Travel</h2>
+    ${WORLDS.map((def, w) => {
+      const status = w === state.world
+        ? '<span class="tag">You are here</span>'
+        : worldUnlocked(w)
+          ? `<button class="btn" type="button" data-action="travel" data-arg="${w}">Go</button>`
+          : '<span class="tag dim">Locked</span>';
+      return `<div class="row${w === state.world ? " mine" : ""}"><img src="${thumbs.egg[w]}" alt=""><div><div class="name">${def.name}</div><div class="sub">World ${w + 1} · ${def.zones.join(", ")}</div></div>${status}</div>`;
+    }).join("")}
+    <p class="note">Unlock new worlds through the portal at the end of each world.</p>`,
 };
 
 function openPanel(kind) {
   panelKind = kind;
-  $panel.hidden = false;
+  panelHtml = "";
+  $("panel").hidden = false;
   renderPanel();
 }
 function closePanel() {
   panelKind = null;
   panelHtml = "";
-  $panel.hidden = true;
+  $("panel").hidden = true;
+}
+function togglePanel(kind) {
+  sound.play("click");
+  if (panelKind === kind) closePanel();
+  else openPanel(kind);
 }
 // Only touch the DOM when the content changes, so a click is never lost to a re-render.
 function renderPanel() {
   if (!panelKind) return;
-  const html = `<button class="btn close" type="button" data-action="close" aria-label="Close">X</button>${RENDER[panelKind]()}`;
+  const html = `<button class="btn hot close" type="button" data-action="close" aria-label="Close">✕</button>${RENDER[panelKind]()}`;
   if (html === panelHtml) return;
   panelHtml = html;
-  $panel.innerHTML = html;
+  $("panel").innerHTML = html;
 }
 
 function spend(cost) {
-  if (state.aura < cost) throw new Error(`Tried to spend ${cost} Aura with only ${state.aura}`);
-  state.aura -= cost;
+  if (state.cash < cost) throw new Error(`Tried to spend ${cost} with only ${state.cash}`);
+  state.cash -= cost;
 }
 
 const ACTIONS = {
-  buyTool(i) {
-    spend(TOOLS[i].cost);
-    state.tool = i;
-    buildTool();
+  close: () => closePanel(),
+  tab: tab => { shopTab = tab; sound.play("click"); },
+  buyGear: tier => {
+    spend(gearCost(Number(tier)));
+    state.gear = Number(tier);
+    dressPlayer();
+    sound.play("buy");
+    particles.burst(player.root.position.clone().setY(2), { count: 20, colors: [0xfbbf24, 0xffffff], speed: 4, up: 6, life: 0.9 });
   },
-  buyBag(i) {
-    spend(BAGS[i].cost);
-    state.bag = i;
+  buyBag: tier => {
+    spend(bagCost(Number(tier)));
+    state.bag = Number(tier);
+    dressPlayer();
+    sound.play("buy");
+    particles.burst(player.root.position.clone().setY(2), { count: 20, colors: [0x22c55e, 0xffffff], speed: 4, up: 6, life: 0.9 });
   },
-  hatch() {
-    spend(EGG_COST);
-    const pet = rollPet();
-    state.pets[pet.id] = (state.pets[pet.id] ?? 0) + 1;
-    buildPets();
-    showHatch(pet);
+  hatch: count => {
+    count = Number(count);
+    spend(eggCost(state.world) * count);
+    const pets = Array.from({ length: count }, rollPet);
+    pets.forEach(pet => { state.pets[pet.id] = (state.pets[pet.id] ?? 0) + 1; });
+    buildFollowers();
+    startHatch(pets);
   },
-  unlock() {
-    spend(ZONES[state.zones].cost);
-    scene.remove(gates[state.zones]);
+  rebirth: () => {
+    spend(rebirthCost(state.rebirths));
+    state.rebirths++;
+    Object.assign(state, { cash: 0, gear: 0, bag: 0, bagCount: 0, bagValue: 0 });
+    shownCash = 0;
+    $("cash").textContent = "0";
+    dressPlayer();
+    closePanel();
+    flash();
+    sound.play("rebirth");
+    sound.play("cheer");
+    world.hype = 1;
+    const p = player.root.position;
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      particles.burst(new THREE.Vector3(p.x + Math.cos(a) * 2, 0.5, p.z + Math.sin(a) * 2), { count: 4, colors: [0xfbbf24, 0xffffff], speed: 1, up: 9, gravity: 4, life: 1.4, size: 0.22 });
+    }
+    toast(`REBIRTH ${state.rebirths}`, `Cash boost ${boostText(rebirthBoost(state.rebirths))}`);
+  },
+  unlock: () => {
+    const k = openZonesHere();
+    spend(zoneCost(zoneIndex(state.world, k)));
     state.zones++;
-    if (state.zones < ZONES.length) gates[state.zones].visible = true;
+    const gate = world.gates.find(g => g.k === k);
+    gate.sinking = 0;
+    const nextGate = world.gates.find(g => g.k === k + 1);
+    if (nextGate) nextGate.group.visible = true;
+    world.portal.visible = openZonesHere() === 3;
     closePanel();
+    sound.play("unlock");
+    sound.play("cheer");
+    world.hype = 1;
+    confetti(player.root.position.x, 6, ZONE_START[k]);
+    toast(`ZONE ${k + 1} UNLOCKED`, world.def.zones[k]);
   },
-  close() {
-    closePanel();
+  unlockWorld: w => {
+    w = Number(w);
+    if (state.rebirths < WORLDS[w].rebirths) throw new Error(`${WORLDS[w].name} needs ${WORLDS[w].rebirths} rebirths`);
+    spend(zoneCost(zoneIndex(w, 0)));
+    state.zones++;
+    sound.play("unlock");
+    travelTo(w);
+  },
+  travel: w => travelTo(Number(w)),
+  champion: () => {
+    spend(TROPHY_COST);
+    state.champion = true;
+    flash();
+    sound.play("champion");
+    sound.play("cheer");
+    world.hype = 1;
+    for (let i = 0; i < 4; i++) setTimeout(() => confetti((Math.random() - 0.5) * 20, 10, PORTAL_Z + 6, 80), i * 350);
+    toast("CHAMPION", "You are a Sports Legend!");
   },
 };
-$panel.addEventListener("click", e => {
+$("panel").addEventListener("click", e => {
   const button = e.target.closest("button[data-action]");
   if (!button) return;
-  ACTIONS[button.dataset.action](Number(button.dataset.arg));
+  ACTIONS[button.dataset.action](button.dataset.arg);
   refreshHud();
 });
 
-let hatchTimers = [];
-function showHatch(pet) {
-  hatchTimers.forEach(clearTimeout);
-  $hatch.hidden = false;
-  $hatch.innerHTML = `<div class="egg"></div>`;
-  hatchTimers = [
-    setTimeout(() => {
-      $hatch.innerHTML = `
-        <div class="reveal">
-          <div class="rarity r-${pet.rarity.toLowerCase()}">${pet.rarity}</div>
-          <div class="pet-name">${pet.name}</div>
-          <p class="note">${pct(pet.bonus)} Brainrot per hit</p>
-        </div>`;
-    }, 1000),
-    setTimeout(() => { $hatch.hidden = true; }, 3200),
-  ];
-}
-$hatch.addEventListener("click", () => {
-  hatchTimers.forEach(clearTimeout);
-  $hatch.hidden = true;
-});
+// =====================================================================
+// Travel between worlds
+// =====================================================================
 
-// ---------- Pads, gates and zones ----------
+let travelling = false;
+function travelTo(w) {
+  if (travelling) return;
+  travelling = true;
+  closePanel();
+  sound.play("travel");
+  $("fade").classList.add("on");
+  setTimeout(() => {
+    state.world = w;
+    enterWorld();
+    $("fade").classList.remove("on");
+    travelling = false;
+    toast(`WORLD ${w + 1}`, WORLDS[w].name);
+  }, 450);
+}
+
+function enterWorld() {
+  buildWorld(state.world);
+  dressPlayer();
+  player.root.position.set(0, 0, SPAWN_Z);
+  player.velocity.set(0, 0, 0);
+  player.facing = Math.PI;
+  player.body.rotation.y = Math.PI;
+  cam.yaw = 0;
+  currentPad = null;
+  gatePrompted = false;
+  atPortal = false;
+  currentZone = 0;
+  buildFollowers();
+  updateCamera(0, true);
+  refreshHud();
+}
+
+// =====================================================================
+// Pads, gates, portal and zone changes
+// =====================================================================
 
 let currentPad = null;
 let gatePrompted = false;
-let currentZone = -1;
+let atPortal = false;
+let currentZone = 0;
 
 function updateTriggers() {
   const p = player.root.position;
 
-  const pad = PADS.find(pd => Math.hypot(pd.x - p.x, pd.z - p.z) < PAD_RADIUS) ?? null;
+  const pad = world.pads.find(pd => Math.hypot(pd.x - p.x, pd.z - p.z) < PAD_RADIUS) ?? null;
   if (pad !== currentPad) {
     if (currentPad && panelKind === currentPad.kind) closePanel();
     currentPad = pad;
     if (pad && pad.kind !== "sell") openPanel(pad.kind);
   }
-  if (pad?.kind === "sell" && state.brainrot > 0) sell();
+  if (pad?.kind === "sell" && state.bagCount > 0) sell();
 
-  if (state.zones < ZONES.length) {
+  if (openZonesHere() < 3) {
     const fromGate = p.z - minZ();
     if (fromGate < 0.05 && !gatePrompted) {
       gatePrompted = true;
@@ -1013,43 +2780,86 @@ function updateTriggers() {
     }
   }
 
+  const nearPortal = world.portal.visible && Math.hypot(p.x, p.z - PORTAL_Z) < 3.4;
+  if (nearPortal !== atPortal) {
+    atPortal = nearPortal;
+    if (nearPortal) openPanel("portal");
+    else if (panelKind === "portal") closePanel();
+  }
+
   const zone = zoneAt(p.z);
   if (zone !== currentZone) {
     currentZone = zone;
-    showToast(ZONES[zone].name);
+    toast(`ZONE ${zone + 1}`, world.def.zones[zone]);
+    refreshHud();
   }
 }
 
-// ---------- Main loop ----------
+function updateWorldFx(dt) {
+  world.gateMat.map.offset.x -= dt * 0.25;
+  if (world.swirl) world.swirl.material.uniforms.time.value = clock;
+  if (world.trophy) world.trophy.rotation.y += dt * 0.6;
+  for (const pad of world.pads) {
+    pad.label.material.opacity = clamp((camera.position.distanceTo(pad.label.position) - 6) / 8, 0, 1);
+    if (pad.model.userData.egg) {
+      const egg = pad.model.userData.egg;
+      egg.rotation.y += dt * 0.8;
+      egg.position.y = 1.3 + Math.sin(clock * 2) * 0.15;
+    }
+    if (pad.model.userData.swirl) pad.model.userData.swirl.material.uniforms.time.value = clock;
+  }
+  for (const gate of world.gates) {
+    if (gate.sinking < 0) continue;
+    gate.sinking = Math.min(1, gate.sinking + dt * 1.2);
+    gate.group.position.y = -10 * smooth(gate.sinking);
+    if (gate.sinking === 1) gate.group.visible = false;
+  }
+  world.hype = Math.max(0, world.hype - dt * 0.35);
+  updateCrowd(world.crowd, clock, world.hype);
+  for (const cloud of clouds) {
+    cloud.position.x += dt * 2;
+    if (cloud.position.x > 260) cloud.position.x = -260;
+  }
+}
 
-await document.fonts.load('72px "Lilita One"');
-placeNodes();
-buildWorld();
+// =====================================================================
+// Main loop
+// =====================================================================
+
+let clock = 0;
+let saveClock = 0;
+
+await Promise.all(['64px "Russo One"', '64px "Graduate"', '600 16px "Barlow"'].map(f => document.fonts.load(f)));
 player = makePlayer();
-buildTool();
-buildPets();
-refreshHud();
+buildThumbnails();
+renderer.setClearColor(0x000000);
 resize();
 addEventListener("resize", resize);
 addEventListener("pagehide", saveState);
-
+refreshMute();
+enterWorld();
 let last = performance.now();
-let time = 0;
-let saveClock = 0;
+$("cash").textContent = fmt(state.cash);
+$("loading").hidden = true;
+toast(`WORLD ${state.world + 1}`, WORLDS[state.world].name);
 
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
-  time += dt;
+  clock += dt;
 
   updatePlayer(dt);
-  if (state.auto && state.brainrot < capacity() && nearestNode()) swing();
+  if (state.auto && state.bagCount < capacity() && nearestNode()) swing();
   updateNodes(dt);
-  updatePets(dt, time);
+  updateFlyers(dt);
+  updateFollowers(dt);
   updateTriggers();
-  updateCamera();
-  eggMesh.rotation.y += dt;
-  eggMesh.position.y = 4.4 + Math.sin(time * 2) * 0.3;
+  updateWorldFx(dt);
+  particles.update(dt);
+  updateCamera(dt);
+  updateCashDisplay(dt);
+  renderer.render(scene, camera);
+  if (hatchFx) updateHatch(dt);
 
   saveClock += dt;
   if (saveClock > 3) {
@@ -1059,8 +2869,6 @@ function frame(now) {
       dirty = false;
     }
   }
-
-  renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
