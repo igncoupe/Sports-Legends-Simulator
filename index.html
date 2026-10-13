@@ -473,7 +473,7 @@ const RESPAWN_TIME = 5;
 
 const SAVE_KEY = "sports-legends-save-v1";
 function defaultState() {
-  return { cash: 0, bagCount: 0, bagValue: 0, gear: 0, bag: 0, zones: 1, world: 0, rebirths: 0, pets: {}, auto: false, muted: false, champion: false };
+  return { cash: 0, bagCount: 0, bagValue: 0, gear: 0, bag: 0, zones: 1, world: 0, rebirths: 0, pets: {}, auto: false, muted: false, music: true, champion: false };
 }
 const state = defaultState();
 let dirty = false;
@@ -595,25 +595,26 @@ const sound = {
       for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
     }
     if (this.ctx.state === "suspended") this.ctx.resume();
+    music.start();
   },
-  envelope(node, { at, dur, vol, attack }) {
+  envelope(node, { at, dur, vol, attack, out }) {
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.0001, at);
     gain.gain.exponentialRampToValueAtTime(vol, at + attack);
     gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    node.connect(gain).connect(this.master);
+    node.connect(gain).connect(out);
   },
-  tone(freq, { type = "sine", dur = 0.15, vol = 0.25, to = freq, at = 0, attack = 0.005 } = {}) {
+  tone(freq, { type = "sine", dur = 0.15, vol = 0.25, to = freq, at = 0, attack = 0.005, out = this.master } = {}) {
     const start = this.ctx.currentTime + at;
     const osc = this.ctx.createOscillator();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, start);
     osc.frequency.exponentialRampToValueAtTime(to, start + dur);
-    this.envelope(osc, { at: start, dur, vol, attack });
+    this.envelope(osc, { at: start, dur, vol, attack, out });
     osc.start(start);
     osc.stop(start + dur + 0.05);
   },
-  noise({ dur = 0.1, vol = 0.2, freq = 1200, to = freq, filter = "lowpass", q = 1, at = 0, attack = 0.005 } = {}) {
+  noise({ dur = 0.1, vol = 0.2, freq = 1200, to = freq, filter = "lowpass", q = 1, at = 0, attack = 0.005, out = this.master } = {}) {
     const start = this.ctx.currentTime + at;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuffer;
@@ -624,7 +625,7 @@ const sound = {
     biquad.frequency.setValueAtTime(freq, start);
     biquad.frequency.exponentialRampToValueAtTime(to, start + dur);
     src.connect(biquad);
-    this.envelope(biquad, { at: start, dur, vol, attack });
+    this.envelope(biquad, { at: start, dur, vol, attack, out });
     src.start(start, Math.random());
     src.stop(start + dur + 0.05);
   },
@@ -633,6 +634,66 @@ const sound = {
     SFX[name](this, arg);
   },
 };
+
+// =====================================================================
+// Background music: an 8-bar stadium-pop loop (C, G, Am, F) synthesized
+// on the fly. A short look-ahead timer schedules each eighth note.
+// =====================================================================
+
+const hz = midi => 440 * 2 ** ((midi - 69) / 12);
+const MUSIC_STEP = 60 / 116 / 2;   // one eighth note at 116 BPM
+const CHORDS = [[48, [0, 4, 7]], [43, [0, 4, 7]], [45, [0, 3, 7]], [41, [0, 4, 7]], [48, [0, 4, 7]], [43, [0, 4, 7]], [41, [0, 4, 7]], [43, [0, 4, 7]]];
+const BASS = [0, 0, 12, 0, 7, 0, 12, 7];
+const MELODY = [
+  76, 0, 79, 0, 81, 79, 76, 0,
+  74, 0, 71, 0, 74, 76, 74, 0,
+  72, 0, 76, 0, 81, 79, 76, 0,
+  77, 76, 74, 72, 74, 0, 0, 0,
+  76, 0, 79, 0, 84, 83, 79, 0,
+  83, 0, 81, 79, 74, 0, 79, 0,
+  81, 79, 77, 76, 77, 0, 81, 0,
+  79, 0, 0, 0, 74, 76, 77, 79,
+];
+
+const music = {
+  out: null,
+  timer: null,
+  step: 0,
+  next: 0,
+  start() {
+    if (this.timer || !sound.ctx || !state.music || document.hidden) return;
+    if (!this.out) {
+      this.out = sound.ctx.createGain();
+      this.out.gain.value = 0.35;
+      this.out.connect(sound.ctx.destination);
+    }
+    this.next = sound.ctx.currentTime + 0.1;
+    this.timer = setInterval(() => this.schedule(), 60);
+  },
+  stop() {
+    clearInterval(this.timer);
+    this.timer = null;
+  },
+  schedule() {
+    while (this.next < sound.ctx.currentTime + 0.25) {
+      this.playStep(this.step, this.next - sound.ctx.currentTime);
+      this.next += MUSIC_STEP;
+      this.step = (this.step + 1) % MELODY.length;
+    }
+  },
+  playStep(i, at) {
+    const out = this.out;
+    const beat = i % 8;
+    const [root, chord] = CHORDS[Math.floor(i / 8)];
+    if (beat % 2 === 0) sound.tone(170, { to: 45, dur: 0.22, vol: 0.55, at, out });
+    else sound.noise({ dur: 0.04, vol: 0.06, freq: 8000, filter: "highpass", at, out });
+    if (beat === 2 || beat === 6) sound.noise({ dur: 0.12, vol: 0.16, freq: 1700, filter: "bandpass", at, out });
+    sound.tone(hz(root + BASS[beat]), { type: "triangle", dur: MUSIC_STEP * 0.9, vol: 0.22, at, out });
+    if (beat % 2 === 1) chord.forEach(n => sound.tone(hz(root + 12 + n), { type: "triangle", dur: 0.12, vol: 0.035, at, out }));
+    if (MELODY[i]) sound.tone(hz(MELODY[i]), { type: "square", dur: MUSIC_STEP * 0.85, vol: 0.035, at, out, attack: 0.01 });
+  },
+};
+document.addEventListener("visibilitychange", () => (document.hidden ? music.stop() : music.start()));
 
 const SFX = {
   swing: s => s.noise({ dur: 0.16, vol: 0.1, freq: 400, to: 1800, filter: "bandpass", q: 2 }),
@@ -2599,9 +2660,10 @@ const RENDER = {
     <p class="note">${world.def.name}, ${world.def.zones[currentZone]}<br>Rebirths: <b>${state.rebirths}</b> · Cash boost: <b>${boostText(cashBoost())}</b></p>
     <button class="btn green wide" type="button" data-action="resume">Resume</button>
     <div class="buttons">
-      <button class="btn blue" type="button" data-action="mute">Sound: ${state.muted ? "Off" : "On"}</button>
-      <button class="btn purple" type="button" data-action="trailer">Watch trailer</button>
+      <button class="btn blue" type="button" data-action="music">Music: ${state.music ? "On" : "Off"}</button>
+      <button class="btn blue" type="button" data-action="mute">Sounds: ${state.muted ? "Off" : "On"}</button>
     </div>
+    <button class="btn purple wide" type="button" data-action="trailer">Watch trailer</button>
     <div class="controls">
       <span><kbd>WASD</kbd>Move</span>
       <span><kbd>Space</kbd>Jump</span>
@@ -2780,6 +2842,11 @@ const ACTIONS = {
   resume: () => resume(),
   trailer: () => showTitle(),
   mute: () => { state.muted = !state.muted; },
+  music: () => {
+    state.music = !state.music;
+    if (state.music) music.start();
+    else music.stop();
+  },
   reset: () => {
     if (!resetArmed) {
       resetArmed = true;

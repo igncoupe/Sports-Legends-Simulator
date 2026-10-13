@@ -22,6 +22,8 @@ A 3D Roblox-style simulator game that runs in the browser, built for Chromebooks
 7. **Rebirth** to reset your cash, gear and bag for a permanent cash boost. You keep your worlds, zones and pets.
 8. Buy the Championship Trophy at the end of the Hockey Rink to become a Sports Legend.
 
+Background music and sound effects are synthesized in the browser, and each has its own on/off switch in the pause menu.
+
 The game opens on a title screen that plays a short trailer, filmed live in the game engine. Press **Play** or Enter to start. You can watch it again from the pause menu.
 
 ## Saving
