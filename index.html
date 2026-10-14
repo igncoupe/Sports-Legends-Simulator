@@ -60,11 +60,6 @@ button { font: inherit; }
   display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
   background: var(--green); border: 3px solid var(--ink); font-size: 20px; -webkit-text-stroke: 0;
 }
-#bag { position: relative; width: 190px; height: 24px; border-radius: 12px; border: 3px solid var(--ink); background: rgb(20 26 51 / 0.7); overflow: hidden; }
-#bag-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--blue); transition: width 0.15s; }
-#bag.full #bag-fill { background: var(--red); }
-#bag-text { position: relative; display: block; text-align: center; font-size: 15px; line-height: 18px; font-variant-numeric: tabular-nums; }
-#full { margin: 0; font-size: 16px; color: var(--yellow); -webkit-text-stroke: 4px var(--ink); }
 
 #side { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); display: grid; gap: 10px; }
 #pause-btn { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: 16px; width: 54px; height: 50px; padding: 0; display: grid; place-items: center; }
@@ -151,6 +146,15 @@ body.hatching #hud, body.hatching #side, body.hatching #pause-btn, body.hatching
 .card .name { font-size: 15px; }
 .card .count { position: absolute; top: 6px; right: 9px; font-size: 14px; font-weight: 700; }
 .cards.small { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+.tabs.three { grid-template-columns: 1fr 1fr 1fr; }
+.row .buttons { gap: 6px; }
+.coin { width: 130px; height: 130px; margin: 6px auto; display: grid; place-items: center; border-radius: 50%; border: 4px solid var(--ink); background: radial-gradient(circle at 35% 35%, #fff4b8, #fbbf24 55%, #b45309); color: var(--ink); font-size: 20px; font-weight: 700; text-align: center; overflow: hidden; }
+.coin.spin { animation: coinspin 0.45s linear infinite; }
+.coin.land { animation: coinland 0.9s ease-out; }
+@keyframes coinspin { to { transform: rotateY(360deg); } }
+@keyframes coinland { from { transform: rotateY(1080deg) scale(1.25); } to { transform: none; } }
+.card.marked { outline: 3px solid var(--red); outline-offset: -3px; }
+.card .del { position: absolute; top: 6px; left: 9px; font-size: 14px; font-weight: 700; color: var(--red); }
 button.card { font: inherit; color: inherit; border: 0; cursor: pointer; }
 button.card:hover { filter: brightness(1.15); }
 .cards .empty { grid-column: 1 / -1; margin: 0; padding: 10px; font-size: 15px; color: var(--dim); text-align: center; background: var(--row); border-radius: 12px; }
@@ -274,8 +278,6 @@ body.title #hud, body.title #side, body.title #pause-btn { visibility: hidden; }
 
 <div id="hud" class="outlined">
   <div id="money"><span class="coin">$</span><span id="cash">0</span></div>
-  <div id="bag"><div id="bag-fill"></div><span id="bag-text">0 / 20</span></div>
-  <p id="full" hidden>Bag full! Sell it at a CASH pad.</p>
 </div>
 <div id="side">
   <button id="pets" class="sq purple" type="button">Pets</button>
@@ -340,67 +342,72 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 // =====================================================================
-// Economy. Zone and rebirth prices were solved backward from target times
-// with a greedy-player simulation: the first zone opens after about 2
-// minutes, each later one takes a little longer (up to about 12), and the
-// full run (all 10 worlds and the Championship) takes about 5 hours.
+// Economy. Piles have fixed health and pay cash the moment they break; the
+// player's gear and the pets' Power do the damage. Each world's portal is a
+// rebirth: cash starts over at $0 with fresh gear and training for the new
+// sport, and every rebirth doubles cash for good and adds a pet slot.
+// Unlock prices were solved backward from target times with a greedy-player
+// simulation: the first zone opens after about a minute, a new world starts
+// tough (a few seconds per pile) and gets easy as you upgrade, the longest
+// wait for anything new is about 4 minutes, and the full run (10 worlds and
+// the Championship) takes about 3.5 hours.
 // =====================================================================
 
 const TIERS = 15;
-const PETS_EQUIPPED = 4;
 // Two significant figures, so prices read cleanly.
 const nice = n => {
   if (n < 100) return Math.round(n);
   const step = 10 ** (Math.floor(Math.log10(n)) - 1);
   return Math.round(n / step) * step;
 };
-// Price of each zone unlock in order: two gates per world, then the portal to
-// the next world. The last entry is the Championship Trophy.
+// Each unlock in order: two gates per world, then the portal, which is the
+// rebirth into the next world. The last entry is the Championship Trophy.
 const ZONE_COSTS = [
-  220, 880, 9.6e4, 6e5, 3.2e6, 4.3e7, 3.6e8, 2.5e9, 1.3e10, 1.2e11, 1.2e12, 3.1e12, 3.7e13, 1.8e14, 6.6e14,
-  4.8e15, 1.7e16, 1.5e17, 4.5e17, 4.5e18, 1.4e19, 5.1e19, 1.8e20, 6.6e20, 2e21, 6.5e21, 2.2e22, 5.6e22, 2.5e23, 8.4e23,
+  33, 52, 800, 9200, 3e4, 4.5e5, 5.3e6, 2.6e7, 1.2e8, 8.3e8, 4.7e9, 2.3e10, 1.8e11, 8.5e11, 4.1e12,
+  3.2e13, 2.2e14, 1.1e15, 8.6e15, 4.2e16, 2e17, 1.6e18, 7.3e18, 2.5e19, 1.3e20, 1.4e21, 1e22, 3.5e22, 1.9e23, 1.2e24,
 ];
-// Price of each rebirth; past the list every rebirth costs 12x the one before.
-const REBIRTH_COSTS = [5.7e4, 2.2e7, 2.9e7, 8.9e9, 9.4e9, 2.2e12, 2.2e12, 6.3e14, 6.3e14, 7.5e16, 7.5e16, 7.7e18, 7.7e18, 3e20, 3e20, 9.6e21, 9.7e21];
-const ballValue = zone => 3 ** zone;
-const gearPower = tier => 2 ** tier;
-const bagCapacity = tier => 20 * 2 ** tier;
-const gearCost = tier => (tier === 0 ? 0 : nice(10 * 18 ** (tier - 1)));
-const bagCost = tier => (tier === 0 ? 0 : nice(15 * 18 ** (tier - 1)));
+const STRENGTH_PER_WORLD = 51;            // gear and pets from the next world hit this much harder
+const PRICE_PER_WORLD = 4.5 ** 3 * 2;     // shop and egg prices in the next world
+const PET_POWER = [20, 50, 120, 300, 900]; // by rarity, in world 1
+const PET_SLOTS_MAX = 8;
+const pileHealth = zone => nice(80 * 4 ** zone);
+const pileValue = zone => nice(3 * 4.5 ** zone);
+const gearDamage = (w, tier) => nice(10 * 1.25 ** tier * STRENGTH_PER_WORLD ** w);
+const trainingBoost = tier => 1.25 ** tier;
+const gearCost = (w, tier) => (tier === 0 ? 0 : nice(10 * 2.2 ** (tier - 1) * PRICE_PER_WORLD ** w));
+const trainingCost = (w, tier) => (tier === 0 ? 0 : nice(15 * 2.2 ** (tier - 1) * PRICE_PER_WORLD ** w));
 const zoneCost = zone => ZONE_COSTS[zone - 1];
-const eggCost = world => nice(150 * 100 ** world);
-const rebirthCost = count => (count < REBIRTH_COSTS.length ? REBIRTH_COSTS[count] : nice(REBIRTH_COSTS.at(-1) * 12 ** (count - REBIRTH_COSTS.length + 1)));
-const rebirthBoost = count => 1 + 0.5 * count;
+const eggCost = world => nice(40 * PRICE_PER_WORLD ** world);
 const TROPHY_COST = ZONE_COSTS.at(-1);
 
 const RARITIES = [
-  { name: "Common", chance: 60, bonus: 0.05 },
-  { name: "Uncommon", chance: 25, bonus: 0.12 },
-  { name: "Rare", chance: 10, bonus: 0.3 },
-  { name: "Epic", chance: 4, bonus: 0.75 },
-  { name: "Legendary", chance: 1, bonus: 2 },
+  { name: "Common", chance: 60 },
+  { name: "Uncommon", chance: 25 },
+  { name: "Rare", chance: 10 },
+  { name: "Epic", chance: 4 },
+  { name: "Legendary", chance: 1 },
 ];
 
 const WORLDS = [
-  { name: "Soccer Stadium", ball: "soccer", icon: "⚽", zones: ["Training Pitch", "Penalty Box", "Golden Goal"], rebirths: 0, egg: "Soccer Egg", gear: "cleats", gearName: "Cleats", action: "kick",
+  { name: "Soccer Stadium", ball: "soccer", icon: "⚽", zones: ["Training Pitch", "Penalty Box", "Golden Goal"], egg: "Soccer Egg", gear: "cleats", gearName: "Cleats", action: "kick",
     accent: 0x3b82f6, kit: 0x2563eb, seats: 0x1e3a8a, wall: 0x1d4ed8, skyTop: 0x2f7fe0, skyLow: 0xc4e6ff },
-  { name: "Basketball Arena", ball: "basketball", icon: "🏀", zones: ["Practice Court", "Three-Point Line", "Slam Dunk Zone"], rebirths: 1, egg: "Hoops Egg", gear: "bands", gearName: "Wristbands", action: "slam",
+  { name: "Basketball Arena", ball: "basketball", icon: "🏀", zones: ["Practice Court", "Three-Point Line", "Slam Dunk Zone"], egg: "Hoops Egg", gear: "bands", gearName: "Wristbands", action: "slam",
     accent: 0xf97316, kit: 0xdc2626, seats: 0x7f1d1d, wall: 0xb91c1c, skyTop: 0x4b63c9, skyLow: 0xffd6ae },
-  { name: "Football Field", ball: "football", icon: "🏈", zones: ["Practice Field", "Midfield", "Hail Mary Zone"], rebirths: 3, egg: "Gridiron Egg", gear: "pads", gearName: "Shoulder Pads", action: "tackle",
+  { name: "Football Field", ball: "football", icon: "🏈", zones: ["Practice Field", "Midfield", "Hail Mary Zone"], egg: "Gridiron Egg", gear: "pads", gearName: "Shoulder Pads", action: "tackle",
     accent: 0x22c55e, kit: 0x15803d, seats: 0x14532d, wall: 0x166534, skyTop: 0x3a78d0, skyLow: 0xdcefff },
-  { name: "Baseball Park", ball: "baseball", icon: "⚾", zones: ["Bullpen", "Infield", "Home Run Derby"], rebirths: 5, egg: "Diamond Egg", gear: "bat", gearName: "Bat", action: "swing",
+  { name: "Baseball Park", ball: "baseball", icon: "⚾", zones: ["Bullpen", "Infield", "Home Run Derby"], egg: "Diamond Egg", gear: "bat", gearName: "Bat", action: "swing",
     accent: 0xef4444, kit: 0x1e3a8a, seats: 0x1e3a8a, wall: 0x14532d, skyTop: 0x6a5acd, skyLow: 0xffc9b0 },
-  { name: "Hockey Rink", ball: "puck", icon: "🏒", zones: ["Warm-Up Ice", "Blue Line", "Power Play"], rebirths: 7, egg: "Frost Egg", gear: "stick", gearName: "Hockey Stick", action: "slap",
+  { name: "Hockey Rink", ball: "puck", icon: "🏒", zones: ["Warm-Up Ice", "Blue Line", "Power Play"], egg: "Frost Egg", gear: "stick", gearName: "Hockey Stick", action: "slap",
     accent: 0x38bdf8, kit: 0x0f172a, seats: 0x0c4a6e, wall: 0xf1f5f9, skyTop: 0x1e3a8a, skyLow: 0xd3eaff },
-  { name: "Tennis Court", ball: "tennis", icon: "🎾", zones: ["Baseline", "Service Box", "Match Point"], rebirths: 9, egg: "Ace Egg", gear: "racket", gearName: "Racket", action: "forehand",
+  { name: "Tennis Court", ball: "tennis", icon: "🎾", zones: ["Baseline", "Service Box", "Match Point"], egg: "Ace Egg", gear: "racket", gearName: "Racket", action: "forehand",
     accent: 0x84cc16, kit: 0x0f766e, seats: 0x134e4a, wall: 0x166534, skyTop: 0x3b82f6, skyLow: 0xd9f99d },
-  { name: "Volleyball Beach", ball: "volleyball", icon: "🏐", zones: ["Shoreline", "Sand Court", "Sunset Spike"], rebirths: 11, egg: "Beach Egg", gear: "kneepads", gearName: "Kneepads", action: "spike",
+  { name: "Volleyball Beach", ball: "volleyball", icon: "🏐", zones: ["Shoreline", "Sand Court", "Sunset Spike"], egg: "Beach Egg", gear: "kneepads", gearName: "Kneepads", action: "spike",
     accent: 0x06b6d4, kit: 0xf97316, seats: 0x0e7490, wall: 0xf59e0b, skyTop: 0x0284c7, skyLow: 0xfed7aa },
-  { name: "Bowling Alley", ball: "pin", icon: "🎳", zones: ["Gutter Lane", "Spare Lane", "Strike Zone"], rebirths: 13, egg: "Strike Egg", gear: "bowling", gearName: "Bowling Ball", action: "bowl",
+  { name: "Bowling Alley", ball: "pin", icon: "🎳", zones: ["Gutter Lane", "Spare Lane", "Strike Zone"], egg: "Strike Egg", gear: "bowling", gearName: "Bowling Ball", action: "bowl",
     accent: 0xec4899, kit: 0x6d28d9, seats: 0x3b0764, wall: 0x581c87, skyTop: 0x1e1b4b, skyLow: 0x9d4edd },
-  { name: "Cricket Ground", ball: "cricket", icon: "🏏", zones: ["Nets", "Outfield", "Boundary Line"], rebirths: 15, egg: "Wicket Egg", gear: "cricket", gearName: "Cricket Bat", action: "drive",
+  { name: "Cricket Ground", ball: "cricket", icon: "🏏", zones: ["Nets", "Outfield", "Boundary Line"], egg: "Wicket Egg", gear: "cricket", gearName: "Cricket Bat", action: "drive",
     accent: 0xeab308, kit: 0x1e40af, seats: 0x1e3a8a, wall: 0x14532d, skyTop: 0x60a5fa, skyLow: 0xfef9c3 },
-  { name: "Golf Course", ball: "golf", icon: "⛳", zones: ["Driving Range", "Fairway", "Championship Green"], rebirths: 17, egg: "Eagle Egg", gear: "club", gearName: "Golf Club", action: "golf",
+  { name: "Golf Course", ball: "golf", icon: "⛳", zones: ["Driving Range", "Fairway", "Championship Green"], egg: "Eagle Egg", gear: "club", gearName: "Golf Club", action: "golf",
     accent: 0xfbbf24, kit: 0xb91c1c, seats: 0x14532d, wall: 0x064e3b, skyTop: 0x2563eb, skyLow: 0xe0f2fe },
 ];
 
@@ -408,11 +415,9 @@ const WORLDS = [
 const GEAR_TIERS = ["Rookie", "Practice", "Club", "Varsity", "College", "Pro", "All-Star", "Carbon", "Titanium", "MVP", "Golden", "Platinum", "Diamond", "Legend", "Champion"];
 const gearName = (w, tier) => `${GEAR_TIERS[tier]} ${WORLDS[w].gearName}`;
 
-const BAGS = [
-  "Pocket Pouch", "Drawstring Bag", "Gym Bag", "Sports Backpack", "Duffel Bag", "Team Duffel", "Ball Bag", "Equipment Bag",
-  "Pro Bag", "Titan Bag", "Golden Bag", "Platinum Bag", "Diamond Bag", "Legend Bag", "Champion Bag",
-].map((name, tier) => ({ name, tier }));
-const BAG_COLORS = [0x6b7280, 0x16a34a, 0x2563eb, 0xdc2626, 0x7c3aed, 0x0891b2, 0xea580c, 0x334155, 0xdb2777, 0x0f766e, 0xfbbf24, 0xe5e7eb, 0x67e8f9, 0xa855f7, 0xf0abfc];
+// Pet training levels; each one multiplies every pet's Power. Bought per world.
+const TRAINING = ["No Training", "Warm-Ups", "Drills", "Scrimmages", "Team Practice", "Two-a-Days", "Film Study", "Strength Camp",
+  "Speed Camp", "All-Star Camp", "Pro Camp", "Olympic Camp", "Legend Camp", "Hall of Fame Camp", "GOAT Camp"];
 
 // The look of each gear level, in the same order as GEAR_TIERS.
 const FINISHES = [
@@ -485,7 +490,7 @@ const PETS = [
   ["Eagle Lion", 9, 3, "lion", 0xd97706, 0xfde68a],
   ["Hole-in-One Dragon", 9, 4, "dragon", 0xf8fafc, 0xfbbf24],
 ].map(([name, world, rarity, species, body, belly], id) => ({
-  id, name, world, rarity, species, body, belly, bonus: RARITIES[rarity].bonus * (1 + world),
+  id, name, world, rarity, species, body, belly, power: PET_POWER[rarity] * STRENGTH_PER_WORLD ** world,
 }));
 
 // =====================================================================
@@ -503,20 +508,16 @@ const PAD_RADIUS = 2.8;
 const NODES_PER_ZONE = 12;
 const NODE_KINDS = ["pile", "rack", "giant"];
 const NODE_SPEC = {
-  pile: { hits: 5, radius: 1.2 },
-  rack: { hits: 8, radius: 1.5 },
-  giant: { hits: 12, radius: 1.6 },
+  pile: { radius: 1.2, top: 2.4 },
+  rack: { radius: 1.5, top: 2.9 },
+  giant: { radius: 1.6, top: 3.8 },
 };
 const PADS = [
-  { kind: "sell", x: -17, z: 25, booth: [-23.5, 25] },
   { kind: "shop", x: 17, z: 27, booth: [23.5, 27] },
   { kind: "egg", x: 17, z: 16, booth: [23.5, 16] },
   { kind: "travel", x: -17, z: 14, booth: [-23.5, 14] },
-  { kind: "sell", x: -23, z: -28, booth: [-27.6, -28] },
-  { kind: "sell", x: -23, z: -64, booth: [-27.6, -64] },
 ];
 const PAD_STYLE = {
-  sell: { color: 0x22c55e, label: "CASH" },
   shop: { color: 0x3b82f6, label: "GEAR SHOP" },
   egg: { color: 0xa855f7, label: "EGGS" },
   travel: { color: 0xf59e0b, label: "TRAVEL" },
@@ -544,7 +545,8 @@ const randomName = () => NAME_WORDS.map(words => words[Math.floor(Math.random() 
 const cleanName = text => text.replace(/[^A-Za-z0-9 ]/g, "").replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
 
 function defaultState() {
-  return { cash: 0, bagCount: 0, bagValue: 0, gear: 0, bag: 0, zones: 1, world: 0, rebirths: 0, pets: {}, auto: false, muted: false, music: true, champion: false, name: randomName() };
+  // gear and training hold the tier bought in each world: { [world]: tier }
+  return { cash: 0, gear: {}, training: {}, zones: 1, world: 0, pets: {}, auto: false, muted: false, music: true, champion: false, name: randomName() };
 }
 const state = defaultState();
 let dirty = false;
@@ -601,15 +603,19 @@ async function saveProgress() {
   if (panelKind === "pause") renderPanel();
 }
 
-const capacity = () => bagCapacity(state.bag);
+const gearTier = () => state.gear[state.world] ?? 0;
+const trainingTier = () => state.training[state.world] ?? 0;
+// Every portal bought is a rebirth: x2 cash for good and one more pet slot.
+const rebirths = () => Math.floor((state.zones - 1) / 3);
+const cashBoost = () => 2 ** rebirths();
+const petSlots = () => Math.min(PET_SLOTS_MAX, 3 + rebirths());
 function equippedPets() {
   return Object.entries(state.pets)
     .flatMap(([id, count]) => Array(count).fill(PETS[id]))
-    .sort((a, b) => b.bonus - a.bonus)
-    .slice(0, PETS_EQUIPPED);
+    .sort((a, b) => b.power - a.power)
+    .slice(0, petSlots());
 }
-const petBoost = () => 1 + equippedPets().reduce((sum, pet) => sum + pet.bonus, 0);
-const cashBoost = () => petBoost() * rebirthBoost(state.rebirths);
+const petDamage = pet => pet.power * trainingBoost(trainingTier());
 const zoneIndex = (w, k) => w * 3 + k;
 const openZonesHere = () => clamp(state.zones - state.world * 3, 1, 3);
 const worldUnlocked = w => state.zones > w * 3;
@@ -634,7 +640,6 @@ function fmt(n) {
   return parseFloat(n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0)) + SUFFIXES[i];
 }
 const money = n => `$${fmt(n)}`;
-const pct = bonus => `+${Math.round(bonus * 100)}%`;
 const boostText = n => `x${parseFloat(n.toFixed(2))}`;
 
 function mulberry32(seed) {
@@ -780,11 +785,6 @@ const SFX = {
   full: s => {
     s.tone(240, { type: "square", dur: 0.1, vol: 0.06 });
     s.tone(180, { type: "square", dur: 0.16, vol: 0.06, at: 0.11 });
-  },
-  sell: s => {
-    s.tone(1046, { type: "square", dur: 0.08, vol: 0.08 });
-    s.tone(1568, { type: "square", dur: 0.32, vol: 0.1, at: 0.08 });
-    s.noise({ dur: 0.4, vol: 0.12, freq: 7000, filter: "highpass", at: 0.08 });
   },
   buy: s => [523, 659, 784, 1046].forEach((f, i) => s.tone(f, { type: "triangle", dur: 0.18, vol: 0.16, at: i * 0.06 })),
   deny: s => s.tone(140, { type: "sawtooth", dur: 0.2, vol: 0.1, to: 110 }),
@@ -1342,18 +1342,14 @@ function gearModel(w, tier) {
   return g;
 }
 
-function bagModel(tier) {
+// A training medal, for the Pet Training shop pictures.
+function medalModel(tier) {
   const g = new THREE.Group();
-  const color = BAG_COLORS[tier];
-  const shiny = tier >= 10;
-  const body = std(color, { roughness: shiny ? 0.25 : 0.7, metalness: shiny ? 0.7 : 0 });
-  const trim = std(0x111827, { roughness: 0.6 });
-  const size = 0.55 + tier * 0.035;
-  part(g, new RoundedBoxGeometry(0.75, 0.85, 0.42, 3, 0.14), body, [0, 0, 0], size);
-  part(g, new RoundedBoxGeometry(0.55, 0.38, 0.16, 2, 0.07), body, [0, -0.16 * size, 0.26 * size], size);
-  part(g, GEO.box, trim, [0, -0.02 * size, 0.345 * size], [0.42 * size, 0.035 * size, 0.02]);
-  for (const side of [-1, 1]) part(g, GEO.box, trim, [side * 0.22 * size, 0.05 * size, -0.25 * size], [0.07 * size, 0.85 * size, 0.04]);
-  if (tier >= 12) part(g, GEO.sphere, std(0xffffff, { emissive: color, emissiveIntensity: 1.2 }), [0, 0.5 * size, 0.1], 0.08);
+  const ribbon = std(0x2563eb, { roughness: 0.6 });
+  for (const side of [-1, 1]) part(g, GEO.box, ribbon, [side * 0.16, 0.6, -0.02], [0.22, 0.8, 0.04], [0, 0, side * -0.35]);
+  part(g, GEO.cyl, finishMat(tier), [0, 0, 0], [0.5, 0.12, 0.5], [Math.PI / 2, 0, 0]);
+  part(g, GEO.cyl, TRIM(), [0, 0, 0.065], [0.36, 0.02, 0.36], [Math.PI / 2, 0, 0]);
+  part(g, GEO.cyl, finishMat(tier), [0, 0, 0.08], [0.3, 0.02, 0.3], [Math.PI / 2, 0, 0]);
   return g;
 }
 
@@ -1668,16 +1664,12 @@ function makePlayer() {
   const legL = leg(-1);
   const legR = leg(1);
 
-  const bag = new THREE.Group();
-  bag.position.set(0, 0.5, -0.42);
-  torso.add(bag);
-
   root.position.set(0, 0, SPAWN_Z);
   body.rotation.y = Math.PI;
   scene.add(root);
   return {
-    root, body, hips, torso, neck, armL, armR, legL, legR, gearParts: [], followers: [], bag, kitMat, capMat,
-    velocity: new THREE.Vector3(), facing: Math.PI, swingT: 1, swings: 0, phase: 0, run: 0, air: 0, land: 0, bagPunch: 0, lastStep: 0,
+    root, body, hips, torso, neck, armL, armR, legL, legR, gearParts: [], followers: [], kitMat, capMat,
+    velocity: new THREE.Vector3(), facing: Math.PI, swingT: 1, swings: 0, phase: 0, run: 0, air: 0, land: 0, lastStep: 0,
   };
 }
 
@@ -1714,9 +1706,7 @@ function equipGear(rig, w, tier) {
 }
 
 function dressPlayer() {
-  equipGear(player, state.world, state.gear);
-  player.bag.clear();
-  player.bag.add(bagModel(state.bag));
+  equipGear(player, state.world, gearTier());
   player.kitMat.color.set(WORLDS[state.world].kit);
   player.capMat.color.set(WORLDS[state.world].accent);
 }
@@ -2360,7 +2350,8 @@ function buildWorld(w) {
       group.rotation.y = rand() * Math.PI * 2;
       group.traverse(o => { if (o.isMesh) own(o.geometry); });
       root.add(group);
-      nodes.push({ k, kind, x, z, radius: NODE_SPEC[kind].radius, hits: NODE_SPEC[kind].hits, respawn: 0, punch: 0, grow: 1, group });
+      const hp = pileHealth(zoneIndex(w, k));
+      nodes.push({ k, kind, x, z, radius: NODE_SPEC[kind].radius, hp, maxHp: hp, respawn: 0, punch: 0, grow: 1, group });
       placed++;
     }
   }
@@ -2405,7 +2396,7 @@ function buildWorld(w) {
     const sign = signBoard([
       { text: `WORLD ${w + 2}`, size: 54, color: hex(next.accent) },
       { text: next.name, size: 92 },
-      { text: `${money(zoneCost(zoneIndex(w + 1, 0)))} · ${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}`, size: 66, color: "#fbbf24" },
+      { text: `Rebirth · ${money(zoneCost(zoneIndex(w + 1, 0)))}`, size: 66, color: "#fbbf24" },
     ], 13, 4.6, next.accent);
     sign.position.y = 11.6;
     portal.add(sign);
@@ -2425,12 +2416,13 @@ function buildWorld(w) {
   portal.visible = openHere === 3;
   root.add(portal);
 
+  // Gold coins that fly from a broken pile to the player.
   const flyerPool = [];
-  for (let i = 0; i < 18; i++) {
-    const mesh = new THREE.Group();
-    addBall(mesh, def.ball, [0, 0, 0], def.ball === "puck" ? 0.22 : 0.2, rand);
+  const coinMat = std(0xfbbf24, { metalness: 1, roughness: 0.25, emissive: 0xb45309, emissiveIntensity: 0.35 });
+  for (let i = 0; i < 30; i++) {
+    const mesh = part(root, GEO.cyl, coinMat, [0, 0, 0], [0.32, 0.08, 0.32], [Math.PI / 2, 0, 0]);
+    mesh.castShadow = false;
     mesh.visible = false;
-    root.add(mesh);
     flyerPool.push(mesh);
   }
 
@@ -2556,8 +2548,6 @@ function animatePlayer(P, dt, moving, airborne, speed) {
   P.body.position.set(0, 0, 0);
   P.swingT = Math.min(1, P.swingT + dt / SWING_TIME);
   if (P.swingT < 1) actionPose(P, P.swingT, WORLDS[world.index].action);
-  P.bagPunch = Math.max(0, P.bagPunch - dt * 6);
-  P.bag.scale.setScalar(1 + P.bagPunch * 0.18);
 }
 
 // Adds the current world's hit move on top of the walk/idle pose. The wind-up peaks at 30%,
@@ -2665,78 +2655,77 @@ function nearestNode() {
   return best;
 }
 
-function swing() {
+function swing(node = nearestNode()) {
   if (player.swingT < 1) return;
   player.swingT = 0;
   player.swings++;
   sound.play("swing");
-  const node = nearestNode();
   if (!node) return;
-  if (state.bagCount >= capacity()) {
-    sound.play("full");
-    return;
-  }
+  focus = node;
   const p = player.root.position;
   player.facing = Math.atan2(node.x - p.x, node.z - p.z);
-  setTimeout(() => hit(node), SWING_TIME * 450);
+  setTimeout(() => {
+    if (!world.nodes.includes(node) || node.respawn > 0) return;
+    sound.play("hit");
+    damagePile(node, gearDamage(state.world, gearTier()));
+  }, SWING_TIME * 450);
 }
 
-function hit(node) {
-  if (node.respawn > 0) return;
-  const zone = zoneIndex(world.index, node.k);
-  const balls = Math.min(gearPower(state.gear), capacity() - state.bagCount);
-  if (balls === 0) return;
-  state.bagCount += balls;
-  state.bagValue += balls * ballValue(zone) * cashBoost();
-  node.hits--;
-  const top = hitEffects(node, balls);
-  if (node.hits === 0) {
-    node.respawn = RESPAWN_TIME;
-    node.breakT = 0;
-    sound.play("break");
-    particles.burst(top, { count: 22, colors: [world.def.accent, 0xffffff, 0xfbbf24], speed: 7, up: 6, life: 0.9, size: 0.2 });
-    shake = 0.35;
-  }
+// Damage from the player or a pet. A pile that runs out of health pays its cash at once.
+function damagePile(node, amount) {
+  node.hp -= amount;
+  hitFx(node);
+  if (node.hp > 0) return;
+  const cash = pileValue(zoneIndex(world.index, node.k)) * cashBoost();
+  state.cash += cash;
+  node.hp = 0;
+  breakFx(node, cash);
   refreshHud();
 }
-
-function hitEffects(node, balls) {
+const pileTop = node => new THREE.Vector3(node.x, NODE_SPEC[node.kind].top - 0.8, node.z);
+function hitFx(node) {
   node.punch = 1;
-  sound.play("hit");
-  const top = new THREE.Vector3(node.x, node.kind === "giant" ? 2.8 : 1.6, node.z);
-  particles.burst(top, { count: 8, colors: [0xffffff, 0xfde68a], speed: 5, up: 3, life: 0.4, size: 0.12 });
-  popup(`+${fmt(balls)} ${world.def.icon}`, top.x, top.y + 1, top.z, "info");
-  launchFlyers(top, Math.min(balls, 5));
-  return top;
+  particles.burst(pileTop(node), { count: 5, colors: [0xffffff, 0xfde68a], speed: 4, up: 3, life: 0.35, size: 0.1 });
+}
+function breakFx(node, cash) {
+  const top = pileTop(node);
+  node.respawn = RESPAWN_TIME;
+  node.breakT = 0;
+  sound.play("break");
+  particles.burst(top, { count: 22, colors: [world.def.accent, 0xffffff, 0xfbbf24], speed: 7, up: 6, life: 0.9, size: 0.2 });
+  popup(`+${money(cash)}`, top.x, top.y + 1.2, top.z, "cashpop");
+  launchCoins(top, 6);
+  shake = Math.max(shake, 0.2);
+  world.hype = Math.max(world.hype, 0.3);
 }
 
-function launchFlyers(from, count) {
+function launchCoins(from, count) {
   for (let i = 0; i < count; i++) {
     const mesh = world.flyerPool.find(m => !m.visible);
     if (!mesh) return;
     mesh.visible = true;
     mesh.position.copy(from);
-    world.flyers.push({ mesh, from: from.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 1.2)), t: -i * 0.06, index: i });
+    const spread = new THREE.Vector3((Math.random() - 0.5) * 2.4, Math.random() * 1.2, (Math.random() - 0.5) * 2.4);
+    world.flyers.push({ mesh, from: from.clone().add(spread), t: -i * 0.05, index: i });
   }
 }
 
-const bagWorld = new THREE.Vector3();
+const chest = new THREE.Vector3();
 function updateFlyers(dt) {
-  player.bag.getWorldPosition(bagWorld);
+  chest.copy(player.root.position);
+  chest.y += 2;
   world.flyers = world.flyers.filter(f => {
-    f.t += dt / 0.42;
+    f.t += dt / 0.55;
     if (f.t < 0) return true;
     if (f.t >= 1) {
       f.mesh.visible = false;
-      player.bagPunch = 1;
       sound.play("collect", f.index);
       return false;
     }
     const t = f.t;
-    f.mesh.position.lerpVectors(f.from, bagWorld, t);
-    f.mesh.position.y += Math.sin(t * Math.PI) * 2.2;
+    f.mesh.position.lerpVectors(f.from, chest, t * t);
+    f.mesh.position.y += Math.sin(t * Math.PI) * 2;
     f.mesh.rotation.x += dt * 12;
-    f.mesh.scale.setScalar(1 - t * 0.5);
     return true;
   });
 }
@@ -2749,7 +2738,7 @@ function updateNodes(dt) {
       n.group.scale.setScalar(Math.max(0.001, 1 - n.breakT));
       n.group.rotation.y += dt * 8 * (1 - n.breakT);
       if (n.respawn <= 0) {
-        n.hits = NODE_SPEC[n.kind].hits;
+        n.hp = n.maxHp;
         n.grow = 0;
       }
       continue;
@@ -2762,21 +2751,68 @@ function updateNodes(dt) {
   }
 }
 
-function sellEffects(amount) {
+// The pile your pets attack: the one you last hit or clicked while it's close,
+// otherwise the nearest open pile close by.
+const PET_RANGE = 14;
+let focus = null;
+function petTarget() {
   const p = player.root.position;
-  popup(`+${money(amount)}`, p.x, p.y + 4.4, p.z, "cashpop");
-  sound.play("sell");
-  particles.burst(new THREE.Vector3(p.x, 2.5, p.z), { count: 18, colors: [0x22c55e, 0xfbbf24, 0xffffff], speed: 5, up: 7, life: 1, size: 0.18 });
-  world.hype = Math.max(world.hype, 0.4);
+  const usable = n => world.nodes.includes(n) && n.respawn <= 0 && n.k < openZonesHere() && Math.hypot(n.x - p.x, n.z - p.z) < PET_RANGE + n.radius;
+  if (focus && usable(focus)) return focus;
+  focus = null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const n of world.nodes) {
+    if (!usable(n)) continue;
+    const d = Math.hypot(n.x - p.x, n.z - p.z);
+    if (d < bestDist) {
+      best = n;
+      bestDist = d;
+    }
+  }
+  return best;
 }
 
-function sell() {
-  sellEffects(state.bagValue);
-  flyCoins(player.root.position);
-  state.cash += state.bagValue;
-  state.bagCount = 0;
-  state.bagValue = 0;
-  refreshHud();
+// Health bar over the pile your pets are attacking.
+const hpBar = (() => {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 64;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false }));
+  sprite.scale.set(3.4, 0.85, 1);
+  sprite.renderOrder = 10;
+  sprite.visible = false;
+  scene.add(sprite);
+  return { sprite, c, tex, node: null, hp: -1 };
+})();
+function updateHpBar(target) {
+  const bar = hpBar;
+  bar.sprite.visible = !!target;
+  if (!target) return;
+  bar.sprite.position.set(target.x, NODE_SPEC[target.kind].top + 0.4, target.z);
+  if (bar.node === target && bar.hp === target.hp) return;
+  bar.node = target;
+  bar.hp = target.hp;
+  const g = bar.c.getContext("2d");
+  const { width: w, height: h } = bar.c;
+  const frac = clamp(target.hp / target.maxHp, 0, 1);
+  g.clearRect(0, 0, w, h);
+  g.fillStyle = "#141a33";
+  g.beginPath(); g.roundRect(2, 2, w - 4, h - 4, 14); g.fill();
+  g.fillStyle = frac > 0.3 ? "#2fbf5b" : "#ef4f4f";
+  g.beginPath(); g.roundRect(8, 8, (w - 16) * frac, h - 16, 9); g.fill();
+  g.font = '700 30px "Fredoka", sans-serif';
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.lineWidth = 6;
+  g.strokeStyle = "#141a33";
+  const label = `${fmt(Math.ceil(target.hp))} / ${fmt(target.maxHp)}`;
+  g.strokeText(label, w / 2, h / 2 + 2);
+  g.fillStyle = "#ffffff";
+  g.fillText(label, w / 2, h / 2 + 2);
+  bar.tex.needsUpdate = true;
 }
 
 // =====================================================================
@@ -2805,23 +2841,43 @@ function followerSpot(rig, [sx, sz]) {
   return new THREE.Vector3(p.x + sx * cosF + sz * sinF, 0, p.z - sx * sinF + sz * cosF);
 }
 
-function updateFollowers(rig, dt) {
-  for (const f of rig.followers) {
-    const { x: tx, z: tz } = followerSpot(rig, f.slot);
+// Pets follow their athlete. With a target pile they surround it and attack,
+// each one dealing its Power (times training) per second.
+const PET_ATTACK_EVERY = 0.8;
+function updateFollowers(rig, dt, target = null) {
+  rig.followers.forEach((f, i) => {
+    let tx, tz;
+    if (target) {
+      const a = (i / rig.followers.length) * Math.PI * 2 + target.x;
+      tx = target.x + Math.cos(a) * (target.radius + 0.9);
+      tz = target.z + Math.sin(a) * (target.radius + 0.9);
+    } else {
+      ({ x: tx, z: tz } = followerSpot(rig, f.slot));
+    }
     const dx = tx - f.group.position.x;
     const dz = tz - f.group.position.z;
     const dist = Math.hypot(dx, dz);
-    f.group.position.x = damp(f.group.position.x, tx, 5, dt);
-    f.group.position.z = damp(f.group.position.z, tz, 5, dt);
+    f.group.position.x = damp(f.group.position.x, tx, target ? 7 : 5, dt);
+    f.group.position.z = damp(f.group.position.z, tz, target ? 7 : 5, dt);
     const moving = dist > 0.4;
     f.hop += dt * (moving ? 11 : 3);
     const hop = Math.abs(Math.sin(f.hop));
     f.group.position.y = moving ? hop * 0.55 : 0.05 + Math.sin(f.hop) * 0.04;
     f.model.scale.set(1 + (moving ? (1 - hop) * 0.12 : 0), 1 - (moving ? (1 - hop) * 0.12 : 0), 1);
-    const want = moving ? Math.atan2(dx, dz) : rig.facing;
+    const want = moving ? Math.atan2(dx, dz) : target ? Math.atan2(target.x - f.group.position.x, target.z - f.group.position.z) : rig.facing;
     const turn = Math.atan2(Math.sin(want - f.group.rotation.y), Math.cos(want - f.group.rotation.y));
     f.group.rotation.y += turn * (1 - Math.exp(-dt * 8));
-  }
+    f.lunge = Math.max(0, (f.lunge ?? 0) - dt * 4);
+    f.model.position.z = Math.sin(f.lunge * Math.PI) * 0.6;
+    if (!target || moving) return;
+    f.cooldown = (f.cooldown ?? Math.random() * PET_ATTACK_EVERY) - dt;
+    if (f.cooldown > 0) return;
+    f.cooldown += PET_ATTACK_EVERY;
+    f.lunge = 1;
+    if (rig !== player) return;
+    if (trailer) hitFx(target);
+    else damagePile(target, petDamage(f.pet) * PET_ATTACK_EVERY);
+  });
 }
 
 function rollPet() {
@@ -2852,7 +2908,7 @@ const showcase = (() => {
   return { scene: sc, camera: cam, stage, dimScene, dimCamera, particles: new Particles(sc, 200) };
 })();
 
-const thumbs = { gear: [], bag: [], pet: [], egg: [] };
+const thumbs = { gear: [], training: [], pet: [], egg: [] };
 function renderThumb(object, tilt = 0.5) {
   const s = showcase;
   s.camera.aspect = 1;
@@ -2886,7 +2942,7 @@ async function buildThumbnails(onProgress) {
   renderer.setSize(160, 160, false);
   renderer.setClearColor(0x2b335c);
   const jobs = [
-    ...BAGS.map(bag => () => thumbs.bag.push(renderThumb(bagModel(bag.tier), 0.6))),
+    ...TRAINING.map((name, tier) => () => thumbs.training.push(renderThumb(medalModel(tier), 0.4))),
     ...PETS.map(pet => () => thumbs.pet.push(renderThumb(petTemplate(pet).clone(), 0.45))),
     ...WORLDS.map((def, w) => () => thumbs.egg.push(renderThumb(eggModel(w, false).group, 0.3))),
   ];
@@ -2952,7 +3008,7 @@ function updateHatch(dt) {
     $("hatch-info").innerHTML = h.items.map(it => `
       <div class="reveal">
         <span class="pet-name r${it.pet.rarity}">${it.pet.name}</span>
-        <span class="sub">${RARITIES[it.pet.rarity].name}, ${pct(it.pet.bonus)} cash</span>
+        <span class="sub">${RARITIES[it.pet.rarity].name}, Power ${fmt(it.pet.power)}</span>
       </div>`).join("");
   }
   if (h.cracked && t > CRACK_T + 0.8) $("hatch-hint").hidden = false;
@@ -3028,8 +3084,25 @@ canvas.addEventListener("pointermove", e => {
   cam.yaw -= dx * 0.006;
   cam.pitch = clamp(cam.pitch + dy * 0.005, 0.08, 1.3);
 });
-canvas.addEventListener("pointerup", () => {
-  if (drag && !drag.moved) swing();
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+function pileAt(clientX, clientY) {
+  pointer.set((clientX / innerWidth) * 2 - 1, -(clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects(world.nodes.filter(n => n.respawn <= 0).map(n => n.group), true)[0];
+  if (!hit) return null;
+  return world.nodes.find(n => hit.object === n.group || n.group.getObjectById(hit.object.id));
+}
+canvas.addEventListener("pointerup", e => {
+  if (drag && !drag.moved) {
+    const clicked = pileAt(e.clientX, e.clientY);
+    if (clicked && clicked.k < openZonesHere()) {
+      focus = clicked;
+      const p = player.root.position;
+      const inReach = Math.hypot(clicked.x - p.x, clicked.z - p.z) - clicked.radius < REACH;
+      if (inReach) swing(clicked);
+    } else swing();
+  }
   drag = null;
 });
 canvas.addEventListener("pointercancel", () => { drag = null; });
@@ -3071,11 +3144,6 @@ const RARITY_HEX = [0xcbd5e1, 0x4ade80, 0x38bdf8, 0xc084fc, 0xfbbf24];
 let shownCash = state.cash;
 
 function refreshHud() {
-  const full = state.bagCount >= capacity();
-  $("bag-text").textContent = `${fmt(state.bagCount)} / ${fmt(capacity())}`;
-  $("bag-fill").style.width = `${(100 * state.bagCount) / capacity()}%`;
-  $("bag").classList.toggle("full", full);
-  $("full").hidden = !full;
   $("auto").innerHTML = `Auto<small>${state.auto ? "On" : "Off"}</small>`;
   $("auto").classList.toggle("green", state.auto);
   $("auto").classList.toggle("gray", !state.auto);
@@ -3104,28 +3172,6 @@ function popup(text, x, y, z, kind) {
   el.style.top = `${at.y}px`;
   el.addEventListener("animationend", () => el.remove());
   $("fx").append(el);
-}
-function flyCoins(p) {
-  const from = screenOf(p.x, p.y + 2.5, p.z);
-  const target = $("cash").getBoundingClientRect();
-  for (let i = 0; i < 8; i++) {
-    const el = document.createElement("div");
-    el.className = "coin-fly";
-    el.textContent = "$";
-    el.style.left = `${from.x + (Math.random() - 0.5) * 60}px`;
-    el.style.top = `${from.y + (Math.random() - 0.5) * 40}px`;
-    el.style.transitionDelay = `${i * 45}ms`;
-    $("fx").append(el);
-    el.getBoundingClientRect();
-    el.style.transform = `translate(${target.left + 20 - parseFloat(el.style.left)}px, ${target.top + 16 - parseFloat(el.style.top)}px) scale(0.7)`;
-    el.style.opacity = "0.4";
-    el.addEventListener("transitionend", () => el.remove(), { once: true });
-  }
-  setTimeout(() => {
-    $("money").classList.remove("bump");
-    void $("money").offsetWidth;
-    $("money").classList.add("bump");
-  }, 700);
 }
 let toastTimer;
 function toast(title, sub = "") {
@@ -3162,6 +3208,14 @@ document.addEventListener("pointerdown", () => sound.unlock());
 let panelKind = null;
 let panelHtml = "";
 let shopTab = "gear";
+let petSort = "power";
+let deleting = null;      // while picking pets to delete: { [id]: count }
+let deleteArmed = false;
+const PET_ORDER = {
+  power: (a, b) => b.power - a.power,
+  rarity: (a, b) => b.rarity - a.rarity || b.power - a.power,
+  world: (a, b) => b.world - a.world || b.rarity - a.rarity,
+};
 
 const buyButton = (action, arg, cost, label = money(cost), extra = "") =>
   `<button class="btn green ${extra}" type="button" data-action="${action}" data-arg="${arg}"${state.cash < cost ? " disabled" : ""}>${label}</button>`;
@@ -3183,7 +3237,7 @@ function saveStatus() {
 const RENDER = {
   pause: () => `
     <h2>Paused</h2>
-    <p class="note">${world.def.name}, ${world.def.zones[currentZone]}<br>Rebirths: <b>${state.rebirths}</b> · Cash boost: <b>${boostText(cashBoost())}</b></p>
+    <p class="note">${world.def.name}, ${world.def.zones[currentZone]}<br>Rebirths: <b>${rebirths()}</b> · Cash boost: <b>${boostText(cashBoost())}</b> · Pet slots: <b>${petSlots()}</b></p>
     <button class="btn green wide" type="button" data-action="resume">Resume</button>
     <div class="buttons">
       <button class="btn blue" type="button" data-action="music">Music: ${state.music ? "On" : "Off"}</button>
@@ -3200,26 +3254,29 @@ const RENDER = {
     </div>
     <p class="note">${saveStatus()}</p>
     <button class="btn red" type="button" data-action="reset">${resetArmed ? "Click again to erase everything" : "Reset progress"}</button>`,
-  shop: () => `
+  shop: () => {
+    const w = state.world;
+    return `
     <h2>Shop</h2>
     <div class="tabs">
       <button class="tab${shopTab === "gear" ? " on" : ""}" type="button" data-action="tab" data-arg="gear">Gear</button>
-      <button class="tab${shopTab === "bags" ? " on" : ""}" type="button" data-action="tab" data-arg="bags">Bags</button>
+      <button class="tab${shopTab === "training" ? " on" : ""}" type="button" data-action="tab" data-arg="training">Pet Training</button>
     </div>
     ${shopTab === "gear"
-      ? GEAR_TIERS.map((name, tier) => shopRow(thumbs.gear[state.world][tier], gearName(state.world, tier), `${fmt(gearPower(tier))} ${tier === 0 ? "ball" : "balls"} per hit`, tier, state.gear, gearCost(tier), "buyGear")).join("")
-      : BAGS.map(b => shopRow(thumbs.bag[b.tier], b.name, `Holds ${fmt(bagCapacity(b.tier))} balls`, b.tier, state.bag, bagCost(b.tier), "buyBag")).join("")}`,
+      ? GEAR_TIERS.map((name, tier) => shopRow(thumbs.gear[w][tier], gearName(w, tier), `${fmt(gearDamage(w, tier))} damage per hit`, tier, gearTier(), gearCost(w, tier), "buyGear")).join("")
+      : TRAINING.map((name, tier) => shopRow(thumbs.training[tier], name, `Pet Power ${boostText(trainingBoost(tier))}`, tier, trainingTier(), trainingCost(w, tier), "buyTraining")).join("")}`;
+  },
   egg: () => {
     const cost = eggCost(state.world);
     return `
       <h2>${WORLDS[state.world].egg}</h2>
-      <p class="note">Your best ${PETS_EQUIPPED} pets follow you and boost your cash.</p>
+      <p class="note">Pets attack piles for you. Your best ${petSlots()} follow you.</p>
       <div class="cards">${PETS.filter(p => p.world === state.world).map(p => `
         <div class="card">
           <img src="${thumbs.pet[p.id]}" alt="">
           <div class="name r${p.rarity}">${p.name}</div>
           <div class="sub">${RARITIES[p.rarity].name}, ${RARITIES[p.rarity].chance}%</div>
-          <div class="sub">${pct(p.bonus)} cash</div>
+          <div class="sub">Power ${fmt(p.power)}</div>
         </div>`).join("")}</div>
       <div class="buttons">
         ${buyButton("hatch", 1, cost, `Hatch 1 (${money(cost)})`)}
@@ -3228,37 +3285,54 @@ const RENDER = {
   },
   pets: () => {
     const equipped = equippedPets();
-    const owned = PETS.filter(p => state.pets[p.id]).sort((a, b) => b.bonus - a.bonus);
-    const list = owned.length === 0
-      ? '<p class="note">No pets yet. Hatch some at the EGGS pad.</p>'
-      : `<div class="cards">${owned.map(p => `
-          <div class="card${equipped.includes(p) ? " equipped" : ""}">
-            <span class="count">x${state.pets[p.id]}</span>
-            <img src="${thumbs.pet[p.id]}" alt="">
-            <div class="name r${p.rarity}">${p.name}</div>
-            <div class="sub">${pct(p.bonus)} cash</div>
-          </div>`).join("")}</div>`;
+    const owned = PETS.filter(p => state.pets[p.id]).sort(PET_ORDER[petSort]);
+    const total = Object.values(state.pets).reduce((a, b) => a + b, 0);
+    const picked = deleting ? Object.values(deleting).reduce((a, b) => a + b, 0) : 0;
+    const card = p => {
+      const marked = deleting?.[p.id] ?? 0;
+      const tag = deleting ? "button" : "div";
+      const attrs = deleting ? ` type="button" data-action="markPet" data-arg="${p.id}"` : "";
+      return `<${tag} class="card${equipped.includes(p) ? " equipped" : ""}${marked ? " marked" : ""}"${attrs}>
+          <span class="count">x${state.pets[p.id]}</span>${marked ? `<span class="del">-${marked}</span>` : ""}
+          <img src="${thumbs.pet[p.id]}" alt="">
+          <div class="name r${p.rarity}">${p.name}</div>
+          <div class="sub">Power ${fmt(p.power)}</div>
+        </${tag}>`;
+    };
+    const sortTab = (key, label) => `<button class="tab${petSort === key ? " on" : ""}" type="button" data-action="sortPets" data-arg="${key}">${label}</button>`;
+    if (owned.length === 0) return '<h2>Pets</h2><p class="note">No pets yet. Hatch some at the EGGS pad.</p>';
     return `
       <h2>Pets</h2>
-      <p class="note">Cash boost from pets: <b>${boostText(petBoost())}</b>. The green ones are following you.</p>
-      ${list}`;
+      <p class="note">${total} pet${total === 1 ? "" : "s"}. Your best <b>${petSlots()}</b> (green) follow you and attack. Rebirths add slots, up to ${PET_SLOTS_MAX}.</p>
+      <div class="tabs three">${sortTab("power", "Power")}${sortTab("rarity", "Rarity")}${sortTab("world", "World")}</div>
+      <div class="cards">${owned.map(card).join("")}</div>
+      ${deleting
+        ? `<p class="note">Tap a pet to pick it for deleting. Tap again to pick more copies.</p>
+           <div class="buttons">
+             <button class="btn red" type="button" data-action="deletePets"${picked ? "" : " disabled"}>${deleteArmed ? `Really delete ${picked}?` : `Delete ${picked} pet${picked === 1 ? "" : "s"}`}</button>
+             <button class="btn gray" type="button" data-action="stopDeleting">Done</button>
+           </div>`
+        : '<button class="btn gray wide" type="button" data-action="startDeleting">Delete pets</button>'}`;
   },
   rebirth: () => {
-    const cost = rebirthCost(state.rebirths);
-    const next = WORLDS.find(d => d.rebirths > state.rebirths);
-    return `
+    const latest = rebirths();
+    const next = WORLDS[latest + 1];
+    const info = `
       <h2>Rebirth</h2>
-      <p class="note">Start over with a bigger cash boost. You lose your cash, gear and bag but keep your worlds, zones and pets.</p>
-      <p class="note">Cash boost: <b>${boostText(rebirthBoost(state.rebirths))}</b> → <b>${boostText(rebirthBoost(state.rebirths + 1))}</b></p>
-      ${next ? `<p class="note">${next.name} needs ${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}. You have ${state.rebirths}.</p>` : ""}
-      ${buyButton("rebirth", 0, cost, `Rebirth (${money(cost)})`, "yellow wide")}`;
+      <p class="note">A rebirth takes you to the next world. Every rebirth gives you <b>x2 cash</b> for good and <b>+1 pet slot</b> (up to ${PET_SLOTS_MAX}).
+        You start the new sport with $0 and fresh gear and training, and keep all your pets.</p>
+      <p class="note">Rebirths: <b>${latest}</b> · Cash boost: <b>${boostText(cashBoost())}</b> · Pet slots: <b>${petSlots()}</b></p>`;
+    if (!next) return `${info}<p class="note">You've reached the last world. Win the Championship Trophy at the end of it!</p>`;
+    if (state.zones < 3 * (latest + 1)) return `${info}<p class="note">Unlock every zone of ${WORLDS[latest].name} to rebirth into ${next.name}.</p>`;
+    const cost = zoneCost(state.zones);
+    return `${info}${buyButton("rebirth", 0, cost, `Rebirth into ${next.name} (${money(cost)})`, "yellow wide")}`;
   },
   gate: () => {
     const k = openZonesHere();
     const zone = zoneIndex(state.world, k);
     return `
       <h2>${world.def.zones[k]}</h2>
-      <p class="note">Balls here are worth <b>${money(ballValue(zone))}</b> each.</p>
+      <p class="note">Piles here have <b>${fmt(pileHealth(zone))}</b> health and pay <b>${money(pileValue(zone) * cashBoost())}</b> each.</p>
       ${buyButton("unlock", 0, zoneCost(zone), `Unlock (${money(zoneCost(zone))})`, "wide")}`;
   },
   portal: () => {
@@ -3273,13 +3347,7 @@ const RENDER = {
     if (worldUnlocked(w + 1)) {
       return `<h2>${next.name}</h2><button class="btn blue wide" type="button" data-action="travel" data-arg="${w + 1}">Travel</button>`;
     }
-    const cost = zoneCost(zoneIndex(w + 1, 0));
-    const ready = state.rebirths >= next.rebirths;
-    return `
-      <h2>${next.name}</h2>
-      <p class="note">Costs <span class="${state.cash >= cost ? "ok" : "no"}">${money(cost)}</span> and needs
-        <span class="${ready ? "ok" : "no"}">${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}</span>. You have ${state.rebirths}.</p>
-      ${ready ? buyButton("unlockWorld", w + 1, cost, "Unlock", "wide") : '<button class="btn wide" type="button" disabled>Rebirth more first</button>'}`;
+    return RENDER.rebirth();
   },
   players: () => {
     if (net.status !== "online") {
@@ -3289,7 +3357,8 @@ const RENDER = {
     const rows = others.map(([uid, r]) => `
       <div class="row"><img src="${r.data.pets.length ? thumbs.pet[r.data.pets[0]] : thumbs.egg[state.world]}" alt="">
         <div><div class="name">${escapeHtml(r.data.name)}</div><div class="sub">${r.data.pets.length} pet${r.data.pets.length === 1 ? "" : "s"} following</div></div>
-        <button class="btn purple" type="button" data-action="tradeWith" data-arg="${uid}"${net.trade ? " disabled" : ""}>Trade</button>
+        <div class="buttons"><button class="btn purple" type="button" data-action="tradeWith" data-arg="${uid}"${net.trade ? " disabled" : ""}>Trade</button>
+        <button class="btn yellow" type="button" data-action="flipWith" data-arg="${uid}"${net.trade ? " disabled" : ""}>Flip</button></div>
       </div>`).join("");
     return `
       <h2>Players</h2>
@@ -3303,17 +3372,26 @@ const RENDER = {
     <p class="note">Other players see it above your head. Letters and numbers only.</p>
     <form class="field" data-action="saveName"><input id="name-input" maxlength="${NAME_MAX}" value="${escapeHtml(state.name)}" autocomplete="off" spellcheck="false" aria-label="Your name"><button class="btn green" type="submit">Save</button></form>`,
   invite: () => `
-    <h2>Trade request</h2>
-    <p class="note"><b>${escapeHtml(net.invite.name)}</b> wants to trade pets with you.</p>
+    <h2>${net.invite.mode === "flip" ? "Coin flip challenge" : "Trade request"}</h2>
+    <p class="note"><b>${escapeHtml(net.invite.name)}</b> ${net.invite.mode === "flip" ? "wants to coin flip for pets. Each of you bets pets, and the winner takes them all." : "wants to trade pets with you."}</p>
     <div class="buttons">
-      <button class="btn green" type="button" data-action="acceptTrade">Trade</button>
+      <button class="btn green" type="button" data-action="acceptTrade">${net.invite.mode === "flip" ? "Let's flip" : "Trade"}</button>
       <button class="btn red" type="button" data-action="close">No thanks</button>
     </div>`,
   trade: () => {
     const t = net.trade;
     const name = escapeHtml(t.otherName);
+    const flip = t.mode === "flip";
     if (!t.active) {
-      return `<h2>Trade</h2><p class="note">Waiting for <b>${name}</b> to answer...</p><button class="btn red wide" type="button" data-action="close">Cancel</button>`;
+      return `<h2>${flip ? "Coin flip" : "Trade"}</h2><p class="note">Waiting for <b>${name}</b> to answer...</p><button class="btn red wide" type="button" data-action="close">Cancel</button>`;
+    }
+    if (flip && t.secret) {
+      const face = t.result === "won" ? "You" : t.result === "lost" ? name : "?";
+      return `
+        <h2>Coin flip with ${name}</h2>
+        <div class="coin ${t.result ? "land" : "spin"}">${face}</div>
+        <p class="note" style="text-align:center">${t.result === "won" ? '<span class="ok">You won! Their pets are yours.</span>' : t.result === "lost" ? `<span class="no">${name} won your bet.</span>` : "Flipping..."}</p>
+        ${t.result ? "" : '<button class="btn red wide" type="button" data-action="close">Cancel</button>'}`;
     }
     const sig = tradeSignature(t);
     const iReady = t.myReady === sig;
@@ -3327,18 +3405,19 @@ const RENDER = {
     const offer = (o, action, none) => Object.keys(o).length
       ? Object.entries(o).map(([id, count]) => petCard(id, count, action)).join("")
       : `<p class="empty">${none}</p>`;
-    const spare = PETS.filter(pet => (state.pets[pet.id] ?? 0) > (t.mine[pet.id] ?? 0)).sort((a, b) => b.bonus - a.bonus);
+    const spare = PETS.filter(pet => (state.pets[pet.id] ?? 0) > (t.mine[pet.id] ?? 0)).sort((a, b) => b.power - a.power);
     return `
-      <h2>Trade with ${name}</h2>
+      <h2>${flip ? "Coin flip" : "Trade"} with ${name}</h2>
+      ${flip ? '<p class="note">Each of you bets pets. The winner takes them all.</p>' : ""}
       <div class="trade-cols">
-        <div><h3>You give</h3><div class="cards small">${offer(t.mine, "offerRemove", "Tap your pets below")}</div></div>
-        <div><h3>You get</h3><div class="cards small">${offer(t.theirs, "", "Nothing yet")}</div></div>
+        <div><h3>${flip ? "You bet" : "You give"}</h3><div class="cards small">${offer(t.mine, "offerRemove", "Tap your pets below")}</div></div>
+        <div><h3>${flip ? "They bet" : "You get"}</h3><div class="cards small">${offer(t.theirs, "", "Nothing yet")}</div></div>
       </div>
       <h3>Your pets</h3>
       <div class="cards small">${spare.length ? spare.map(pet => petCard(pet.id, state.pets[pet.id] - (t.mine[pet.id] ?? 0), "offerAdd")).join("") : '<p class="empty">No more pets to offer</p>'}</div>
-      <p class="note">${theyReady ? `<span class="ok">${name} is ready.</span>` : `${name} is choosing...`} ${iReady ? "You're ready." : "Press Ready when you like the trade."}</p>
+      <p class="note">${theyReady ? `<span class="ok">${name} is ready.</span>` : `${name} is choosing...`} ${iReady ? "You're ready." : `Press Ready when you like the ${flip ? "bets" : "trade"}.`}</p>
       <div class="buttons">
-        <button class="btn green" type="button" data-action="tradeReady"${iReady || tradeIsEmpty(t) ? " disabled" : ""}>${iReady ? "Waiting..." : "Ready"}</button>
+        <button class="btn green" type="button" data-action="tradeReady"${iReady || !tradeCanStart(t) ? " disabled" : ""}>${iReady ? "Waiting..." : "Ready"}</button>
         <button class="btn red" type="button" data-action="close">Cancel</button>
       </div>`;
   },
@@ -3437,12 +3516,13 @@ const ACTIONS = {
     sound.play("click");
     openPanel("players");
   },
-  tradeWith: uid => startTrade(uid),
+  tradeWith: uid => startTrade(uid, "trade"),
+  flipWith: uid => startTrade(uid, "flip"),
   acceptTrade: () => {
     const invite = net.invite;
     net.invite = null;
     net.fb.remove(inviteRef(net.uid, invite.from));
-    openTrade(invite.trade, invite.from, invite.name);
+    openTrade(invite.trade, invite.from, invite.name, invite.mode);
   },
   offerAdd: id => {
     const t = net.trade;
@@ -3485,18 +3565,54 @@ const ACTIONS = {
   },
   tab: tab => { shopTab = tab; sound.play("click"); },
   buyGear: tier => {
-    spend(gearCost(Number(tier)));
-    state.gear = Number(tier);
+    spend(gearCost(state.world, Number(tier)));
+    state.gear[state.world] = Number(tier);
     dressPlayer();
     sound.play("buy");
     particles.burst(player.root.position.clone().setY(2), { count: 20, colors: [0xfbbf24, 0xffffff], speed: 4, up: 6, life: 0.9 });
   },
-  buyBag: tier => {
-    spend(bagCost(Number(tier)));
-    state.bag = Number(tier);
-    dressPlayer();
+  buyTraining: tier => {
+    spend(trainingCost(state.world, Number(tier)));
+    state.training[state.world] = Number(tier);
     sound.play("buy");
-    particles.burst(player.root.position.clone().setY(2), { count: 20, colors: [0x22c55e, 0xffffff], speed: 4, up: 6, life: 0.9 });
+    particles.burst(player.root.position.clone().setY(2), { count: 20, colors: [0x3b82f6, 0xffffff], speed: 4, up: 6, life: 0.9 });
+  },
+  sortPets: key => {
+    petSort = key;
+    sound.play("click");
+  },
+  startDeleting: () => {
+    deleting = {};
+    deleteArmed = false;
+    sound.play("click");
+  },
+  stopDeleting: () => {
+    deleting = null;
+    sound.play("click");
+  },
+  markPet: id => {
+    const marked = deleting[id] ?? 0;
+    deleting[id] = marked < state.pets[id] ? marked + 1 : 0;
+    if (!deleting[id]) delete deleting[id];
+    deleteArmed = false;
+    sound.play("click");
+  },
+  deletePets: () => {
+    if (!deleteArmed) {
+      deleteArmed = true;
+      setTimeout(() => { deleteArmed = false; renderPanel(); }, 3000);
+      return;
+    }
+    const count = Object.values(deleting).reduce((a, b) => a + b, 0);
+    for (const [id, n] of Object.entries(deleting)) {
+      state.pets[id] -= n;
+      if (state.pets[id] === 0) delete state.pets[id];
+    }
+    deleting = {};
+    deleteArmed = false;
+    buildFollowers(player, equippedPets());
+    sound.play("break");
+    toast(`Deleted ${count} pet${count === 1 ? "" : "s"}`);
   },
   hatch: count => {
     count = Number(count);
@@ -3507,23 +3623,16 @@ const ACTIONS = {
     startHatch(pets);
   },
   rebirth: () => {
-    spend(rebirthCost(state.rebirths));
-    state.rebirths++;
-    Object.assign(state, { cash: 0, gear: 0, bag: 0, bagCount: 0, bagValue: 0 });
+    const next = rebirths() + 1;
+    if (state.zones !== 3 * next) throw new Error("A rebirth needs every zone of the newest world unlocked");
+    spend(zoneCost(state.zones));
+    state.zones++;
+    state.cash = 0;
     shownCash = 0;
     $("cash").textContent = "0";
-    dressPlayer();
-    closePanel();
-    flash();
     sound.play("rebirth");
     sound.play("cheer");
-    world.hype = 1;
-    const p = player.root.position;
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2;
-      particles.burst(new THREE.Vector3(p.x + Math.cos(a) * 2, 0.5, p.z + Math.sin(a) * 2), { count: 4, colors: [0xfbbf24, 0xffffff], speed: 1, up: 9, gravity: 4, life: 1.4, size: 0.22 });
-    }
-    toast(`Rebirth ${state.rebirths}!`, `Cash boost is now ${boostText(rebirthBoost(state.rebirths))}`);
+    travelTo(next, [`Rebirth ${rebirths()}!`, `Cash ${boostText(cashBoost())} · ${petSlots()} pet slots · Welcome to ${WORLDS[next].name}`]);
   },
   unlock: () => {
     const k = openZonesHere();
@@ -3540,14 +3649,6 @@ const ACTIONS = {
     world.hype = 1;
     confetti(player.root.position.x, 6, ZONE_START[k]);
     toast(`${world.def.zones[k]} unlocked!`);
-  },
-  unlockWorld: w => {
-    w = Number(w);
-    if (state.rebirths < WORLDS[w].rebirths) throw new Error(`${WORLDS[w].name} needs ${WORLDS[w].rebirths} rebirths`);
-    spend(zoneCost(zoneIndex(w, 0)));
-    state.zones++;
-    sound.play("unlock");
-    travelTo(w);
   },
   travel: w => travelTo(Number(w)),
   champion: () => {
@@ -3580,7 +3681,7 @@ $("panel").addEventListener("submit", e => {
 // =====================================================================
 
 let travelling = false;
-function travelTo(w) {
+function travelTo(w, card = [WORLDS[w].name, `World ${w + 1}`]) {
   if (travelling) return;
   travelling = true;
   closePanel();
@@ -3591,7 +3692,7 @@ function travelTo(w) {
     enterWorld();
     $("fade").classList.remove("on");
     travelling = false;
-    toast(WORLDS[w].name, `World ${w + 1}`);
+    toast(...card);
   }, 450);
 }
 
@@ -3714,7 +3815,7 @@ function joinWorld(w) {
 function presenceData() {
   const p = player.root.position;
   const r2 = v => Math.round(v * 100) / 100;
-  return { name: state.name, x: r2(p.x), z: r2(p.z), y: r2(p.y), f: r2(player.facing), s: player.swings, g: state.gear, b: state.bag, pets: equippedPets().map(pet => pet.id) };
+  return { name: state.name, x: r2(p.x), z: r2(p.z), y: r2(p.y), f: r2(player.facing), s: player.swings, g: gearTier(), pets: equippedPets().map(pet => pet.id) };
 }
 
 function sendPresence() {
@@ -3738,8 +3839,7 @@ function cleanRemote(raw) {
     f: num(raw.f, -10, 10),
     s: int(raw.s, 0, 1e9),
     g: int(raw.g, 0, TIERS - 1),
-    b: int(raw.b, 0, TIERS - 1),
-    pets: (Array.isArray(raw.pets) ? raw.pets : []).map(Number).filter(id => Number.isInteger(id) && PETS[id]).slice(0, PETS_EQUIPPED),
+    pets: (Array.isArray(raw.pets) ? raw.pets : []).map(Number).filter(id => Number.isInteger(id) && PETS[id]).slice(0, PET_SLOTS_MAX),
     t: Number(raw.t) || 0,
   };
 }
@@ -3768,10 +3868,6 @@ function upsertRemote(uid, raw) {
     remoteGroup.add(r.label);
   }
   if (old?.g !== d.g) equipGear(r.rig, net.world, d.g);
-  if (old?.b !== d.b) {
-    r.rig.bag.clear();
-    r.rig.bag.add(bagModel(d.b));
-  }
   if (old?.pets.join() !== d.pets.join()) buildFollowers(r.rig, d.pets.map(id => PETS[id]));
   if (old && old.s !== d.s) r.rig.swingT = 0;
   r.data = d;
@@ -3842,11 +3938,15 @@ function updateOnline(dt) {
   updateRemotes(dt);
 }
 
-// ---- Trading ----
+// ---- Trading and coin flips ----
 // Each side writes only its own part of trades/<id>: the pets it offers and,
 // once happy, a "ready" signature of both offers. When both signatures match
-// the current offers, each browser swaps the pets in its own save. Changing
-// either offer changes the signature, so both have to press Ready again.
+// the current offers, each browser settles in its own save. Changing either
+// offer changes the signature, so both have to press Ready again.
+// A trade swaps the offers. A coin flip gives both bets to the winner; to keep
+// it fair, each side first publishes a hash of a secret (commit), then the
+// secret (reveal), and the coin comes from both secrets together, so neither
+// side can pick a secret that wins.
 
 const tradeRef = id => net.fb.ref(net.db, `trades/${id}/${net.uid}`);
 const inviteRef = (to, from) => net.fb.ref(net.db, `invites/${to}/${from}`);
@@ -3864,14 +3964,15 @@ function tradeSignature(t) {
 }
 const tradeIsEmpty = t => Object.keys(t.mine).length === 0 && Object.keys(t.theirs).length === 0;
 
-function startTrade(other) {
+// mode: "trade" or "flip"
+function startTrade(other, mode) {
   const id = `${net.uid}_${other}_${Date.now().toString(36)}`;
-  openTrade(id, other, net.remotes.get(other).data.name);
-  net.fb.set(inviteRef(other, net.uid), { name: state.name, trade: id, t: net.fb.serverTimestamp() });
+  openTrade(id, other, net.remotes.get(other).data.name, mode);
+  net.fb.set(inviteRef(other, net.uid), { name: state.name, trade: id, mode, t: net.fb.serverTimestamp() });
 }
 
-function openTrade(id, other, otherName) {
-  net.trade = { id, other, otherName, active: false, mine: {}, theirs: {}, myReady: "", theirReady: "", done: false, stop: null };
+function openTrade(id, other, otherName, mode) {
+  net.trade = { id, other, otherName, mode, active: false, mine: {}, theirs: {}, myReady: "", theirReady: "", done: false, stop: null, secret: "", settling: false, result: null };
   net.fb.onDisconnect(tradeRef(id)).remove();
   net.fb.set(tradeRef(id), { name: state.name, ready: "" });
   net.trade.stop = net.fb.onValue(net.fb.ref(net.db, `trades/${id}`), snap => onTradeChange(snap.val()));
@@ -3879,7 +3980,7 @@ function openTrade(id, other, otherName) {
 }
 
 function receiveInvite(from, raw) {
-  const invite = { from, name: cleanName(String(raw?.name ?? "")) || "Player", trade: String(raw?.trade ?? "") };
+  const invite = { from, name: cleanName(String(raw?.name ?? "")) || "Player", trade: String(raw?.trade ?? ""), mode: raw?.mode === "flip" ? "flip" : "trade" };
   const fresh = Number(raw?.t) > Date.now() + net.offset - 60000;
   const busy = net.trade || net.invite || hatchFx || trailer || paused;
   if (!fresh || busy || !invite.trade.startsWith(`${from}_${net.uid}_`)) {
@@ -3901,7 +4002,7 @@ function declineInvite(invite) {
 
 function onTradeChange(val) {
   const t = net.trade;
-  if (!t || t.done) return;
+  if (!t || t.done || t.settling) return;
   const theirs = val?.[t.other];
   if (theirs?.declined) {
     endTrade("declined");
@@ -3916,8 +4017,59 @@ function onTradeChange(val) {
   t.theirReady = String(theirs.ready ?? "");
   t.myReady = String(val[net.uid]?.ready ?? "");
   const sig = tradeSignature(t);
-  if (t.myReady === sig && t.theirReady === sig && !tradeIsEmpty(t)) completeTrade();
+  const bothReady = t.myReady === sig && t.theirReady === sig && tradeCanStart(t);
+  if (bothReady && t.mode === "trade") completeTrade();
+  else if (bothReady) flipStep(t, sig, val[net.uid], theirs);
   else renderPanel();
+}
+
+const tradeCanStart = t => (t.mode === "flip" ? Object.keys(t.mine).length > 0 && Object.keys(t.theirs).length > 0 : !tradeIsEmpty(t));
+const sha256 = async text => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, "0")).join("");
+
+async function flipStep(t, sig, mine, theirs) {
+  if (!t.secret) {
+    t.secret = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join("");
+    renderPanel();
+    net.fb.update(tradeRef(t.id), { commit: await sha256(t.secret + sig) });
+    return;
+  }
+  if (mine?.commit && theirs.commit && !mine.reveal) {
+    net.fb.update(tradeRef(t.id), { reveal: t.secret });
+    return;
+  }
+  if (!mine?.reveal || !theirs.reveal) return;
+  t.settling = true;
+  const fair = (await sha256(String(theirs.reveal) + sig)) === theirs.commit;
+  if (!fair) {
+    endTrade("unfair");
+    return;
+  }
+  const iInvited = t.id.startsWith(`${net.uid}_`);
+  const coin = await sha256(iInvited ? t.secret + theirs.reveal + sig : theirs.reveal + t.secret + sig);
+  const inviterWins = parseInt(coin.slice(0, 2), 16) % 2 === 0;
+  settleFlip(t, iInvited === inviterWins);
+}
+
+// Pays out a coin flip in this player's save, then shows the coin landing.
+function settleFlip(t, won) {
+  t.done = true;
+  if (won) {
+    for (const [id, count] of Object.entries(t.theirs)) state.pets[id] = (state.pets[id] ?? 0) + count;
+  } else {
+    for (const [id, count] of Object.entries(t.mine)) {
+      if ((state.pets[id] ?? 0) < count) throw new Error(`Coin flip bets ${count} of pet ${id} but only ${state.pets[id] ?? 0} are owned`);
+      state.pets[id] -= count;
+      if (state.pets[id] === 0) delete state.pets[id];
+    }
+  }
+  buildFollowers(player, equippedPets());
+  refreshHud();
+  saveProgress();
+  t.result = won ? "won" : "lost";
+  renderPanel();
+  sound.play(won ? "champion" : "full");
+  if (won) confetti(player.root.position.x, 3, player.root.position.z, 50);
+  setTimeout(() => endTrade(t.result), 2600);
 }
 
 function writeOffer() {
@@ -3946,20 +4098,26 @@ function completeTrade() {
 // reason: "done", "cancel" (this player closed it), "left" or "declined" (the other player did).
 function endTrade(reason) {
   const t = net.trade;
+  if (!t) return;
   net.trade = null;
   t.stop();
   if (!t.active && t.id.startsWith(`${net.uid}_`)) net.fb.remove(inviteRef(t.other, net.uid));
   net.fb.onDisconnect(tradeRef(t.id)).cancel();
   net.fb.remove(tradeRef(t.id));
   if (panelKind === "trade") closePanel();
+  const what = t.mode === "flip" ? "Coin flip" : "Trade";
   if (reason === "done") toast("Trade complete!", `With ${t.otherName}`);
-  if (reason === "left") toast("Trade cancelled", `${t.otherName} left the trade`);
-  if (reason === "declined") toast("No trade", `${t.otherName} said no thanks`);
+  if (reason === "won") toast("You won the coin flip!", `${t.otherName}'s pets are yours`);
+  if (reason === "lost") toast("You lost the coin flip", `${t.otherName} won your bet`);
+  if (reason === "left") toast(`${what} cancelled`, `${t.otherName} left`);
+  if (reason === "declined") toast(`No ${what.toLowerCase()}`, `${t.otherName} said no thanks`);
+  if (reason === "unfair") toast("Coin flip cancelled", "The other game's coin didn't check out");
   refreshHud();
 }
 
-// Closing (or replacing) the invite or trade window answers it.
+// Closing (or replacing) the invite or trade window answers it; leaving the pets window ends deleting.
 function leavePanel(kind) {
+  if (kind === "pets") deleting = null;
   if (kind === "invite" && net.invite) {
     const invite = net.invite;
     net.invite = null;
@@ -4028,7 +4186,7 @@ function updateTrailer(dt) {
   trailer.shots[trailer.i].update(trailer.t, dt);
   updateNodes(dt);
   updateFlyers(dt);
-  updateFollowers(player, dt);
+  updateFollowers(player, dt, trailer.shots[trailer.i].petTarget ?? null);
   updateWorldFx(dt);
   particles.update(dt);
   shake = Math.max(0, shake - dt * 2.5);
@@ -4055,7 +4213,7 @@ function trailerWorld(w) {
   }
   player.kitMat.color.set(WORLDS[w].kit);
   player.capMat.color.set(WORLDS[w].accent);
-  equipGear(player, w, state.gear);
+  equipGear(player, w, state.gear[w] ?? 0);
   buildFollowers(player, PETS.filter(pet => pet.world === w && pet.rarity > 0).reverse());
 }
 
@@ -4118,11 +4276,12 @@ function trailerShots() {
     },
     {
       duration: 4.4,
-      card: ["Smash balls", "Every swing fills your bag"],
+      card: ["Break piles", "Your pets attack with you"],
       start() {
         const node = world.nodes.filter(n => n.k === 0).sort((a, b) => Math.hypot(a.x, a.z - SPAWN_Z) - Math.hypot(b.x, b.z - SPAWN_Z))[0];
         const toward = new THREE.Vector2(-node.x, SPAWN_Z - node.z).normalize();
         this.node = node;
+        this.petTarget = node;
         this.stand = V(node.x + toward.x * (node.radius + 1.1), 0, node.z + toward.y * (node.radius + 1.1));
         this.side = V(-toward.y, 0, toward.x);
         this.mid = V((this.stand.x + node.x) / 2, 1.3, (this.stand.z + node.z) / 2);
@@ -4142,8 +4301,10 @@ function trailerShots() {
         }
         if (this.hits.length && t >= this.hits[0]) {
           this.hits.shift();
-          hitEffects(n, gearPower(4));
+          sound.play("hit");
+          hitFx(n);
           shake = 0.15;
+          if (!this.hits.length && !this.swings.length) breakFx(n, pileValue(zoneIndex(world.index, 0)) * 40);
         }
         const from = this.mid.clone().addScaledVector(this.side, 8).setY(2.6);
         const to = this.mid.clone().addScaledVector(this.side, 5).setY(1.9);
@@ -4151,28 +4312,8 @@ function trailerShots() {
       },
     },
     {
-      duration: 3.2,
-      card: ["Sell for cash", "Bigger bags, bigger paydays"],
-      start() {
-        this.pad = world.pads.find(pad => pad.kind === "sell");
-        this.sold = false;
-        placeActor(this.pad.x + 9, this.pad.z - 6, -Math.PI / 2);
-      },
-      update(t, dt) {
-        const pad = this.pad;
-        actorStep(dt, pad.x, pad.z);
-        if (!this.sold && Math.hypot(player.root.position.x - pad.x, player.root.position.z - pad.z) < 0.2) {
-          this.sold = true;
-          sellEffects(ballValue(zoneIndex(world.index, 0)) * 400);
-        }
-        const a = 0.9 - t * 0.3;
-        const at = V(pad.x, 1.4, pad.z);
-        shoot(1, V(pad.x + Math.sin(a) * 9, 4.5, pad.z + Math.cos(a) * 7), null, at, at);
-      },
-    },
-    {
       duration: 3.6,
-      card: ["Hatch pets", "They follow you and boost your cash"],
+      card: ["Hatch pets", "They attack piles for you"],
       start() {
         this.dir = V(-22, 0, -14).normalize();
         this.side = V(-this.dir.z, 0, this.dir.x);
@@ -4192,7 +4333,7 @@ function trailerShots() {
         this.gate = world.gates.find(g => g.group.visible && g.sinking < 0);
         this.z = this.gate ? ZONE_START[this.gate.k] : PORTAL_Z;
         this.fired = false;
-        this.card = this.gate ? ["Unlock zones", "Every zone's balls are worth 3x more"] : ["Travel to new worlds", "Ten sports to master"];
+        this.card = this.gate ? ["Unlock zones", "Tougher piles, bigger payouts"] : ["Travel to new worlds", "Ten sports to master"];
         world.portal.visible = true;
         placeActor(2, this.z + (this.gate ? 4 : 6), Math.PI);
       },
@@ -4262,9 +4403,8 @@ function updateTriggers() {
   if (pad !== currentPad) {
     if (currentPad && panelKind === currentPad.kind) closePanel();
     currentPad = pad;
-    if (pad && pad.kind !== "sell") openPanel(pad.kind);
+    if (pad) openPanel(pad.kind);
   }
-  if (pad?.kind === "sell" && state.bagCount > 0) sell();
 
   if (openZonesHere() < 3) {
     const fromGate = p.z - minZ();
@@ -4339,6 +4479,9 @@ loadStep(0.18, "Loading your progress");
 saveStore = await openSaveStore();
 try {
   Object.assign(state, defaultState(), await loadProgress());
+  // Saves from before gear was bought per world (and from the backpack days) start gear and training fresh.
+  if (typeof state.gear !== "object") state.gear = {};
+  for (const old of ["bag", "bagCount", "bagValue", "rebirths"]) delete state[old];
 } catch (e) {
   $("loading").textContent = "Couldn't load your saved progress. Reload the page to try again.";
   throw e;
@@ -4371,13 +4514,16 @@ function frame(now) {
   if (trailer) updateTrailer(dt);
   else updateOnline(dt);
   remoteGroup.visible = !trailer;
+  if (trailer) hpBar.sprite.visible = false;
   if (!trailer && !paused) {
     clock += dt;
     updatePlayer(dt);
-    if (state.auto && state.bagCount < capacity() && nearestNode()) swing();
+    if (state.auto && nearestNode()) swing();
     updateNodes(dt);
     updateFlyers(dt);
-    updateFollowers(player, dt);
+    const target = petTarget();
+    updateFollowers(player, dt, target);
+    updateHpBar(target);
     updateTriggers();
     updateWorldFx(dt);
     particles.update(dt);
