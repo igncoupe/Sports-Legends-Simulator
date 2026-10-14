@@ -26,6 +26,17 @@ Background music and sound effects are synthesized in the browser, and each has 
 
 The game opens on a title screen that plays a short trailer, filmed live in the game engine. Press **Play** or Enter to start. You can watch it again from the pause menu.
 
+## Multiplayer
+
+On the GitHub Pages link, everyone playing in the same world sees each other run around, hit, and show off their pets, with name tags overhead. Press **Players** to see who's in your world, change your name, or ask someone to trade pets. In a trade, both players pick pets to swap and press **Ready**. If either offer changes, both have to press Ready again.
+
+Multiplayer runs on a free [Firebase](https://firebase.google.com) Realtime Database with anonymous sign-in:
+
+- `FIREBASE_CONFIG` in `index.html` points at the project.
+- `database.rules.json` holds the security rules. Paste it into the Firebase console under **Realtime Database → Rules**. Players can only write their own position, their own invites and their own side of a trade.
+
+Where the Firebase library can't load (such as the claude.ai artifact), the game plays the same without other players, and the Players button says Offline.
+
 ## Saving
 
 Progress saves automatically every few seconds and right after every purchase. When the game is opened as a claude.ai artifact, it saves to a private document tied to your Claude account, so it survives cleared browser data and follows you to other computers. Any other copy (GitHub Pages, a downloaded file) saves in the browser. The pause menu shows where your progress is saved and when it last saved, and has a Reset progress button.

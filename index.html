@@ -150,6 +150,14 @@ body.hatching #hud, body.hatching #side, body.hatching #pause-btn, body.hatching
 .card.equipped { outline: 3px solid var(--green); outline-offset: -3px; }
 .card .name { font-size: 15px; }
 .card .count { position: absolute; top: 6px; right: 9px; font-size: 14px; font-weight: 700; }
+.cards.small { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+button.card { font: inherit; color: inherit; border: 0; cursor: pointer; }
+button.card:hover { filter: brightness(1.15); }
+.cards .empty { grid-column: 1 / -1; margin: 0; padding: 10px; font-size: 15px; color: var(--dim); text-align: center; background: var(--row); border-radius: 12px; }
+.trade-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#panel h3 { margin: 0 0 6px; font-size: 17px; }
+.field { display: flex; gap: 8px; }
+.field input { flex: 1; min-width: 0; padding: 8px 12px; font: inherit; font-size: 18px; font-weight: 600; color: var(--ink); background: var(--text); border: 3px solid var(--ink); border-radius: 12px; }
 .buttons { display: flex; gap: 10px; }
 .buttons .btn { flex: 1; }
 .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 15px; color: var(--dim); }
@@ -273,6 +281,7 @@ body.title #hud, body.title #side, body.title #pause-btn { visibility: hidden; }
   <button id="pets" class="sq purple" type="button">Pets</button>
   <button id="rebirth" class="sq yellow" type="button">Rebirth</button>
   <button id="auto" class="sq gray" type="button">Auto<small>Off</small></button>
+  <button id="players" class="sq blue" type="button">Players<small id="players-count">...</small></button>
 </div>
 <button id="pause-btn" class="btn gray" type="button" aria-label="Pause">
   <svg width="20" height="22" viewBox="0 0 20 22" fill="currentColor" aria-hidden="true"><rect x="2" y="1" width="6" height="20" rx="2"/><rect x="12" y="1" width="6" height="20" rx="2"/></svg>
@@ -525,8 +534,17 @@ const RESPAWN_TIME = 5;
 // =====================================================================
 
 const SAVE_KEY = "sports-legends-save-v1";
+// The name other players see. Letters, numbers and spaces only.
+const NAME_MAX = 16;
+const NAME_WORDS = [
+  ["Speedy", "Mighty", "Golden", "Turbo", "Lucky", "Super", "Epic", "Rocket", "Flash", "Clutch"],
+  ["Striker", "Slugger", "Dunker", "Ace", "Goalie", "Captain", "Champ", "Legend", "Rookie", "Spiker"],
+];
+const randomName = () => NAME_WORDS.map(words => words[Math.floor(Math.random() * words.length)]).join("") + Math.floor(10 + Math.random() * 90);
+const cleanName = text => text.replace(/[^A-Za-z0-9 ]/g, "").replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
+
 function defaultState() {
-  return { cash: 0, bagCount: 0, bagValue: 0, gear: 0, bag: 0, zones: 1, world: 0, rebirths: 0, pets: {}, auto: false, muted: false, music: true, champion: false };
+  return { cash: 0, bagCount: 0, bagValue: 0, gear: 0, bag: 0, zones: 1, world: 0, rebirths: 0, pets: {}, auto: false, muted: false, music: true, champion: false, name: randomName() };
 }
 const state = defaultState();
 let dirty = false;
@@ -1541,6 +1559,13 @@ function signTexture(lines, { width = 1024, height = 256, accent = 0x3b82f6 } = 
   });
 }
 function floatingLabel(text, color, width) {
+  const sprite = labelSprite(text, color, width);
+  own(sprite.material);
+  own(sprite.material.map);
+  return sprite;
+}
+// A text label that always faces the camera. The caller disposes it.
+function labelSprite(text, color, width) {
   const tex = canvasTexture(512, 128, (g, w, h) => {
     let size = 78;
     do { size -= 4; g.font = `700 ${size}px "Fredoka", sans-serif`; } while (g.measureText(text).width > w - 40);
@@ -1553,7 +1578,7 @@ function floatingLabel(text, color, width) {
     g.fillStyle = color;
     g.fillText(text, w / 2, h / 2 + 4);
   });
-  const sprite = new THREE.Sprite(own(new THREE.SpriteMaterial({ map: own(tex), depthWrite: false })));
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false }));
   sprite.scale.set(width, width / 4, 1);
   return sprite;
 }
@@ -1651,45 +1676,45 @@ function makePlayer() {
   body.rotation.y = Math.PI;
   scene.add(root);
   return {
-    root, body, hips, torso, neck, armL, armR, legL, legR, gearParts: [], bag, kitMat, capMat,
-    velocity: new THREE.Vector3(), facing: Math.PI, swingT: 1, phase: 0, run: 0, air: 0, land: 0, bagPunch: 0, lastStep: 0,
+    root, body, hips, torso, neck, armL, armR, legL, legR, gearParts: [], followers: [], bag, kitMat, capMat,
+    velocity: new THREE.Vector3(), facing: Math.PI, swingT: 1, swings: 0, phase: 0, run: 0, air: 0, land: 0, bagPunch: 0, lastStep: 0,
   };
 }
 
-function equipGear(w, tier) {
-  for (const piece of player.gearParts) piece.removeFromParent();
-  player.gearParts = [];
+function equipGear(rig, w, tier) {
+  for (const piece of rig.gearParts) piece.removeFromParent();
+  rig.gearParts = [];
   const m = finishMat(tier);
   const attach = (parent, piece, p, rx = 0, ry = 0) => {
     piece.position.set(...p);
     piece.rotation.set(rx, ry, 0);
     parent.add(piece);
-    player.gearParts.push(piece);
+    rig.gearParts.push(piece);
   };
   const kind = WORLDS[w].gear;
   if (HELD[kind]) {
     const { model, tilt, spin } = HELD[kind];
-    attach(player.armR.hand, model(m), [0, 0, 0], Math.PI / 2 + tilt, spin);
+    attach(rig.armR.hand, model(m), [0, 0, 0], Math.PI / 2 + tilt, spin);
     return;
   }
   switch (kind) {
     case "cleats":
-      for (const leg of [player.legL, player.legR]) attach(leg.knee, cleatModel(m), [0, -0.41, 0.07]);
+      for (const leg of [rig.legL, rig.legR]) attach(leg.knee, cleatModel(m), [0, -0.41, 0.07]);
       break;
     case "bands":
-      for (const arm of [player.armL, player.armR]) attach(arm.elbow, bandModel(m), [0, -0.3, 0]);
+      for (const arm of [rig.armL, rig.armR]) attach(arm.elbow, bandModel(m), [0, -0.3, 0]);
       break;
     case "pads":
-      attach(player.torso, padsModel(m), [0, 0.98, 0]);
+      attach(rig.torso, padsModel(m), [0, 0.98, 0]);
       break;
     case "kneepads":
-      for (const leg of [player.legL, player.legR]) attach(leg.knee, kneepadModel(m), [0, -0.02, 0.17]);
+      for (const leg of [rig.legL, rig.legR]) attach(leg.knee, kneepadModel(m), [0, -0.02, 0.17]);
       break;
   }
 }
 
 function dressPlayer() {
-  equipGear(state.world, state.gear);
+  equipGear(player, state.world, state.gear);
   player.bag.clear();
   player.bag.add(bagModel(state.bag));
   player.kitMat.color.set(WORLDS[state.world].kit);
@@ -2431,6 +2456,7 @@ addEventListener("keydown", e => {
     play();
     return;
   }
+  if (e.target instanceof HTMLInputElement) return;
   if (!GAME_KEYS.has(e.code)) return;
   e.preventDefault();
   if (!paused) keys.add(e.code);
@@ -2492,11 +2518,11 @@ function updatePlayer(dt) {
 
   const turn = Math.atan2(Math.sin(P.facing - P.body.rotation.y), Math.cos(P.facing - P.body.rotation.y));
   P.body.rotation.y += turn * (1 - Math.exp(-dt * 14));
-  animatePlayer(dt, moving, p.y > 0, speed);
+  animatePlayer(P, dt, moving, p.y > 0, speed);
 }
 
-function animatePlayer(dt, moving, airborne, speed) {
-  const P = player;
+// Poses any athlete rig (yours or another player's) for this frame.
+function animatePlayer(P, dt, moving, airborne, speed) {
   P.run = damp(P.run, moving && !airborne ? 1 : 0, 10, dt);
   P.air = damp(P.air, airborne ? 1 : 0, 14, dt);
   P.land = Math.max(0, P.land - dt * 5);
@@ -2508,7 +2534,7 @@ function animatePlayer(dt, moving, airborne, speed) {
 
   if (moving && !airborne && Math.floor(P.phase / Math.PI) !== P.lastStep) {
     P.lastStep = Math.floor(P.phase / Math.PI);
-    sound.play("step");
+    if (P === player) sound.play("step");
   }
 
   P.legL.hip.rotation.x = -s * 0.75 * run - 0.7 * air;
@@ -2642,6 +2668,7 @@ function nearestNode() {
 function swing() {
   if (player.swingT < 1) return;
   player.swingT = 0;
+  player.swings++;
   sound.play("swing");
   const node = nearestNode();
   if (!node) return;
@@ -2756,32 +2783,31 @@ function sell() {
 // Pets that follow the player
 // =====================================================================
 
-let followers = [];
 const FOLLOW_SLOTS = [[-1.5, -2.3], [1.5, -2.3], [-1.6, -4], [1.6, -4]];
 
-function buildFollowers(pets = equippedPets()) {
-  followers.forEach(f => scene.remove(f.group));
-  followers = pets.map((pet, i) => {
+function buildFollowers(rig, pets) {
+  rig.followers.forEach(f => f.group.removeFromParent());
+  rig.followers = pets.map((pet, i) => {
     const group = new THREE.Group();
     const model = petTemplate(pet).clone();
     group.add(model);
     const f = { pet, group, model, hop: Math.random() * 6, slot: FOLLOW_SLOTS[i] };
-    group.position.copy(followerSpot(f.slot));
-    scene.add(group);
+    group.position.copy(followerSpot(rig, f.slot));
+    rig.root.parent.add(group);
     return f;
   });
 }
 
-function followerSpot([sx, sz]) {
-  const p = player.root.position;
-  const sinF = Math.sin(player.facing);
-  const cosF = Math.cos(player.facing);
+function followerSpot(rig, [sx, sz]) {
+  const p = rig.root.position;
+  const sinF = Math.sin(rig.facing);
+  const cosF = Math.cos(rig.facing);
   return new THREE.Vector3(p.x + sx * cosF + sz * sinF, 0, p.z - sx * sinF + sz * cosF);
 }
 
-function updateFollowers(dt) {
-  for (const f of followers) {
-    const { x: tx, z: tz } = followerSpot(f.slot);
+function updateFollowers(rig, dt) {
+  for (const f of rig.followers) {
+    const { x: tx, z: tz } = followerSpot(rig, f.slot);
     const dx = tx - f.group.position.x;
     const dz = tz - f.group.position.z;
     const dist = Math.hypot(dx, dz);
@@ -2792,7 +2818,7 @@ function updateFollowers(dt) {
     const hop = Math.abs(Math.sin(f.hop));
     f.group.position.y = moving ? hop * 0.55 : 0.05 + Math.sin(f.hop) * 0.04;
     f.model.scale.set(1 + (moving ? (1 - hop) * 0.12 : 0), 1 - (moving ? (1 - hop) * 0.12 : 0), 1);
-    const want = moving ? Math.atan2(dx, dz) : player.facing;
+    const want = moving ? Math.atan2(dx, dz) : rig.facing;
     const turn = Math.atan2(Math.sin(want - f.group.rotation.y), Math.cos(want - f.group.rotation.y));
     f.group.rotation.y += turn * (1 - Math.exp(-dt * 8));
   }
@@ -3053,6 +3079,7 @@ function refreshHud() {
   $("auto").innerHTML = `Auto<small>${state.auto ? "On" : "Off"}</small>`;
   $("auto").classList.toggle("green", state.auto);
   $("auto").classList.toggle("gray", !state.auto);
+  $("players-count").textContent = net.status === "online" ? `${net.remotes.size} here` : net.status === "offline" ? "Offline" : "...";
   renderPanel();
   dirty = true;
 }
@@ -3124,6 +3151,7 @@ $("auto").addEventListener("click", () => {
   refreshHud();
 });
 $("pets").addEventListener("click", () => togglePanel("pets"));
+$("players").addEventListener("click", () => togglePanel("players"));
 $("rebirth").addEventListener("click", () => togglePanel("rebirth"));
 document.addEventListener("pointerdown", () => sound.unlock());
 
@@ -3253,6 +3281,67 @@ const RENDER = {
         <span class="${ready ? "ok" : "no"}">${next.rebirths} rebirth${next.rebirths === 1 ? "" : "s"}</span>. You have ${state.rebirths}.</p>
       ${ready ? buyButton("unlockWorld", w + 1, cost, "Unlock", "wide") : '<button class="btn wide" type="button" disabled>Rebirth more first</button>'}`;
   },
+  players: () => {
+    if (net.status !== "online") {
+      return `<h2>Players</h2><p class="note">${net.status === "offline" ? `Multiplayer is offline. ${net.error}` : "Connecting to the multiplayer server..."}</p>`;
+    }
+    const others = [...net.remotes].filter(([, r]) => r.data);
+    const rows = others.map(([uid, r]) => `
+      <div class="row"><img src="${r.data.pets.length ? thumbs.pet[r.data.pets[0]] : thumbs.egg[state.world]}" alt="">
+        <div><div class="name">${escapeHtml(r.data.name)}</div><div class="sub">${r.data.pets.length} pet${r.data.pets.length === 1 ? "" : "s"} following</div></div>
+        <button class="btn purple" type="button" data-action="tradeWith" data-arg="${uid}"${net.trade ? " disabled" : ""}>Trade</button>
+      </div>`).join("");
+    return `
+      <h2>Players</h2>
+      <div class="row mine"><img src="${thumbs.egg[state.world]}" alt=""><div><div class="name">${escapeHtml(state.name)}</div><div class="sub">That's you</div></div>
+        <button class="btn blue" type="button" data-action="rename">Change name</button></div>
+      <p class="note">${others.length ? `Also in ${world.def.name}:` : `Nobody else is in ${world.def.name} right now. Send a friend the game link!`}</p>
+      ${rows}`;
+  },
+  rename: () => `
+    <h2>Your name</h2>
+    <p class="note">Other players see it above your head. Letters and numbers only.</p>
+    <form class="field" data-action="saveName"><input id="name-input" maxlength="${NAME_MAX}" value="${escapeHtml(state.name)}" autocomplete="off" spellcheck="false" aria-label="Your name"><button class="btn green" type="submit">Save</button></form>`,
+  invite: () => `
+    <h2>Trade request</h2>
+    <p class="note"><b>${escapeHtml(net.invite.name)}</b> wants to trade pets with you.</p>
+    <div class="buttons">
+      <button class="btn green" type="button" data-action="acceptTrade">Trade</button>
+      <button class="btn red" type="button" data-action="close">No thanks</button>
+    </div>`,
+  trade: () => {
+    const t = net.trade;
+    const name = escapeHtml(t.otherName);
+    if (!t.active) {
+      return `<h2>Trade</h2><p class="note">Waiting for <b>${name}</b> to answer...</p><button class="btn red wide" type="button" data-action="close">Cancel</button>`;
+    }
+    const sig = tradeSignature(t);
+    const iReady = t.myReady === sig;
+    const theyReady = t.theirReady === sig;
+    const petCard = (id, count, action) => {
+      const pet = PETS[id];
+      const tag = action ? "button" : "div";
+      const attrs = action ? ` type="button" data-action="${action}" data-arg="${id}"` : "";
+      return `<${tag} class="card"${attrs}><span class="count">x${count}</span><img src="${thumbs.pet[id]}" alt=""><div class="name r${pet.rarity}">${pet.name}</div></${tag}>`;
+    };
+    const offer = (o, action, none) => Object.keys(o).length
+      ? Object.entries(o).map(([id, count]) => petCard(id, count, action)).join("")
+      : `<p class="empty">${none}</p>`;
+    const spare = PETS.filter(pet => (state.pets[pet.id] ?? 0) > (t.mine[pet.id] ?? 0)).sort((a, b) => b.bonus - a.bonus);
+    return `
+      <h2>Trade with ${name}</h2>
+      <div class="trade-cols">
+        <div><h3>You give</h3><div class="cards small">${offer(t.mine, "offerRemove", "Tap your pets below")}</div></div>
+        <div><h3>You get</h3><div class="cards small">${offer(t.theirs, "", "Nothing yet")}</div></div>
+      </div>
+      <h3>Your pets</h3>
+      <div class="cards small">${spare.length ? spare.map(pet => petCard(pet.id, state.pets[pet.id] - (t.mine[pet.id] ?? 0), "offerAdd")).join("") : '<p class="empty">No more pets to offer</p>'}</div>
+      <p class="note">${theyReady ? `<span class="ok">${name} is ready.</span>` : `${name} is choosing...`} ${iReady ? "You're ready." : "Press Ready when you like the trade."}</p>
+      <div class="buttons">
+        <button class="btn green" type="button" data-action="tradeReady"${iReady || tradeIsEmpty(t) ? " disabled" : ""}>${iReady ? "Waiting..." : "Ready"}</button>
+        <button class="btn red" type="button" data-action="close">Cancel</button>
+      </div>`;
+  },
   travel: () => `
     <h2>Travel</h2>
     ${WORLDS.map((def, w) => {
@@ -3266,6 +3355,7 @@ const RENDER = {
 };
 
 function openPanel(kind) {
+  if (panelKind && panelKind !== kind) leavePanel(panelKind);
   panelKind = kind;
   panelHtml = "";
   $("panel").hidden = false;
@@ -3274,7 +3364,9 @@ function openPanel(kind) {
 function closePanel() {
   // A button left focused inside the hidden panel would still answer Enter.
   if ($("panel").contains(document.activeElement)) document.activeElement.blur();
+  const kind = panelKind;
   panelKind = null;
+  if (kind) leavePanel(kind);
   panelHtml = "";
   $("panel").hidden = true;
 }
@@ -3337,6 +3429,39 @@ function spend(cost) {
 
 const ACTIONS = {
   close: () => closePanel(),
+  rename: () => openPanel("rename"),
+  saveName: () => {
+    const name = cleanName($("name-input").value);
+    if (!name) return;
+    state.name = name;
+    sound.play("click");
+    openPanel("players");
+  },
+  tradeWith: uid => startTrade(uid),
+  acceptTrade: () => {
+    const invite = net.invite;
+    net.invite = null;
+    net.fb.remove(inviteRef(net.uid, invite.from));
+    openTrade(invite.trade, invite.from, invite.name);
+  },
+  offerAdd: id => {
+    const t = net.trade;
+    if ((state.pets[id] ?? 0) <= (t.mine[id] ?? 0)) return;
+    t.mine[id] = (t.mine[id] ?? 0) + 1;
+    sound.play("click");
+    writeOffer();
+  },
+  offerRemove: id => {
+    const t = net.trade;
+    t.mine[id] -= 1;
+    if (t.mine[id] === 0) delete t.mine[id];
+    sound.play("click");
+    writeOffer();
+  },
+  tradeReady: () => {
+    sound.play("click");
+    net.fb.update(tradeRef(net.trade.id), { ready: tradeSignature(net.trade) });
+  },
   resume: () => resume(),
   trailer: () => showTitle(),
   mute: () => { state.muted = !state.muted; },
@@ -3352,7 +3477,7 @@ const ACTIONS = {
       return;
     }
     resetArmed = false;
-    Object.assign(state, defaultState(), { muted: state.muted });
+    Object.assign(state, defaultState(), { muted: state.muted, name: state.name });
     shownCash = 0;
     $("cash").textContent = "0";
     enterWorld();
@@ -3378,7 +3503,7 @@ const ACTIONS = {
     spend(eggCost(state.world) * count);
     const pets = Array.from({ length: count }, rollPet);
     pets.forEach(pet => { state.pets[pet.id] = (state.pets[pet.id] ?? 0) + 1; });
-    buildFollowers();
+    buildFollowers(player, equippedPets());
     startHatch(pets);
   },
   rebirth: () => {
@@ -3443,6 +3568,12 @@ $("panel").addEventListener("click", e => {
   refreshHud();
   saveProgress();
 });
+$("panel").addEventListener("submit", e => {
+  e.preventDefault();
+  ACTIONS[e.target.dataset.action]();
+  refreshHud();
+  saveProgress();
+});
 
 // =====================================================================
 // Travel between worlds
@@ -3467,6 +3598,7 @@ function travelTo(w) {
 function enterWorld() {
   renderGearThumbs(state.world);
   buildWorld(state.world);
+  joinWorld(state.world);
   dressPlayer();
   player.root.position.set(0, 0, SPAWN_Z);
   player.velocity.set(0, 0, 0);
@@ -3477,9 +3609,363 @@ function enterWorld() {
   gatePrompted = false;
   atPortal = false;
   currentZone = 0;
-  buildFollowers();
+  buildFollowers(player, equippedPets());
   updateCamera(0, true);
   refreshHud();
+}
+
+// =====================================================================
+// Multiplayer. Everyone in the same world sees each other run, hit and
+// show off their pets, and two players can trade pets. It runs on Firebase
+// Realtime Database with anonymous sign-in; database.rules.json holds the
+// security rules. The Firebase library loads on demand, so where it can't
+// load or connect the game plays the same, just without other players.
+// =====================================================================
+
+const FIREBASE_CONFIG = {
+  apiKey: "demo",
+  projectId: "demo-sports-legends",
+  databaseURL: "https://demo-sports-legends-default-rtdb.firebaseio.com",
+};
+const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/12.19.0";
+const SEND_EVERY = 0.15;   // seconds between position updates
+const HEARTBEAT_MS = 5000; // between updates while standing still, in real time
+const STALE_MS = 15000;    // a player not heard from for this long has left
+const MAX_REMOTES = 12;
+
+const net = {
+  status: "connecting", // "connecting", "online" or "offline"
+  error: "",
+  fb: null,             // the Firebase database module
+  db: null,
+  uid: null,
+  offset: 0,            // server clock minus local clock, in ms
+  world: null,          // the world whose player list we're in
+  listeners: [],
+  remotes: new Map(),   // uid -> { rig, label, data, seen }
+  sendClock: 0,
+  sentAt: 0,
+  sent: "",
+  invite: null,         // a trade request waiting for an answer
+  trade: null,          // the trade window that's open
+};
+const remoteGroup = new THREE.Group();
+scene.add(remoteGroup);
+const SHARED_GEO = new Set(Object.values(GEO));
+const escapeHtml = text => text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+async function connectOnline() {
+  try {
+    const [app, auth, db] = await Promise.all(["app", "auth", "database"].map(name => import(`${FIREBASE_SDK}/firebase-${name}.js`)));
+    const fbApp = app.initializeApp(FIREBASE_CONFIG);
+    const fbAuth = auth.getAuth(fbApp);
+    net.fb = db;
+    net.db = db.getDatabase(fbApp);
+    net.uid = (await auth.signInAnonymously(fbAuth)).user.uid;
+  } catch (error) {
+    console.warn("Multiplayer is offline:", error);
+    net.status = "offline";
+    net.error = "Couldn't reach the multiplayer server.";
+    refreshHud();
+    return;
+  }
+  const { ref, onValue, onChildAdded, onChildRemoved, onDisconnect } = net.fb;
+  onValue(ref(net.db, ".info/serverTimeOffset"), snap => { net.offset = snap.val() ?? 0; });
+  onValue(ref(net.db, ".info/connected"), snap => {
+    net.status = snap.val() ? "online" : "connecting";
+    // After a dropped connection the server has removed us; arm it again and resend.
+    if (snap.val() && net.world !== null) {
+      onDisconnect(meRef()).remove();
+      net.sent = "";
+    }
+    refreshHud();
+  });
+  const inbox = ref(net.db, `invites/${net.uid}`);
+  onChildAdded(inbox, snap => receiveInvite(snap.key, snap.val()));
+  onChildRemoved(inbox, snap => {
+    if (net.invite?.from !== snap.key) return;
+    net.invite = null;
+    if (panelKind === "invite") closePanel();
+  });
+  joinWorld(state.world);
+}
+
+const meRef = () => net.fb.ref(net.db, `players/${net.world}/${net.uid}`);
+
+// Leaves the old world's player list and joins this one.
+function joinWorld(w) {
+  if (!net.uid) return;
+  const { ref, remove, onDisconnect, onChildAdded, onChildChanged, onChildRemoved } = net.fb;
+  if (net.world !== null) remove(meRef());
+  net.listeners.forEach(stop => stop());
+  for (const uid of [...net.remotes.keys()]) dropRemote(uid);
+  net.world = w;
+  onDisconnect(meRef()).remove();
+  net.sent = "";
+  const list = ref(net.db, `players/${w}`);
+  net.listeners = [
+    onChildAdded(list, snap => upsertRemote(snap.key, snap.val())),
+    onChildChanged(list, snap => upsertRemote(snap.key, snap.val())),
+    onChildRemoved(list, snap => dropRemote(snap.key)),
+  ];
+  refreshHud();
+}
+
+function presenceData() {
+  const p = player.root.position;
+  const r2 = v => Math.round(v * 100) / 100;
+  return { name: state.name, x: r2(p.x), z: r2(p.z), y: r2(p.y), f: r2(player.facing), s: player.swings, g: state.gear, b: state.bag, pets: equippedPets().map(pet => pet.id) };
+}
+
+function sendPresence() {
+  const data = presenceData();
+  const key = JSON.stringify(data);
+  if (key === net.sent && performance.now() - net.sentAt < HEARTBEAT_MS) return;
+  net.sent = key;
+  net.sentAt = performance.now();
+  net.fb.update(meRef(), { ...data, t: net.fb.serverTimestamp() });
+}
+
+// Other players' data comes from other browsers, so it is checked before use.
+function cleanRemote(raw) {
+  const num = (v, lo, hi) => clamp(Number(v) || 0, lo, hi);
+  const int = (v, lo, hi) => Math.round(num(v, lo, hi));
+  return {
+    name: cleanName(String(raw.name ?? "")) || "Player",
+    x: num(raw.x, -HALF, HALF),
+    z: num(raw.z, END_Z, BACK_Z),
+    y: num(raw.y, 0, 20),
+    f: num(raw.f, -10, 10),
+    s: int(raw.s, 0, 1e9),
+    g: int(raw.g, 0, TIERS - 1),
+    b: int(raw.b, 0, TIERS - 1),
+    pets: (Array.isArray(raw.pets) ? raw.pets : []).map(Number).filter(id => Number.isInteger(id) && PETS[id]).slice(0, PETS_EQUIPPED),
+    t: Number(raw.t) || 0,
+  };
+}
+
+function upsertRemote(uid, raw) {
+  if (uid === net.uid || !raw) return;
+  const d = cleanRemote(raw);
+  if (d.t < Date.now() + net.offset - STALE_MS * 2) return; // left behind by a player who vanished
+  let r = net.remotes.get(uid);
+  if (!r) {
+    if (net.remotes.size >= MAX_REMOTES) return;
+    const rig = makePlayer();
+    remoteGroup.add(rig.root);
+    rig.root.position.set(d.x, d.y, d.z);
+    rig.facing = d.f;
+    rig.body.rotation.y = d.f;
+    rig.kitMat.color.set(WORLDS[net.world].kit);
+    rig.capMat.color.set(WORLDS[net.world].accent);
+    r = { rig, label: null, data: null, seen: 0 };
+    net.remotes.set(uid, r);
+  }
+  const old = r.data;
+  if (old?.name !== d.name) {
+    if (r.label) disposeLabel(r.label);
+    r.label = labelSprite(d.name, "#ffffff", 3.4);
+    remoteGroup.add(r.label);
+  }
+  if (old?.g !== d.g) equipGear(r.rig, net.world, d.g);
+  if (old?.b !== d.b) {
+    r.rig.bag.clear();
+    r.rig.bag.add(bagModel(d.b));
+  }
+  if (old?.pets.join() !== d.pets.join()) buildFollowers(r.rig, d.pets.map(id => PETS[id]));
+  if (old && old.s !== d.s) r.rig.swingT = 0;
+  r.data = d;
+  r.seen = performance.now();
+  if (!old || old.name !== d.name || old.pets.join() !== d.pets.join()) refreshHud();
+}
+
+function disposeLabel(label) {
+  label.removeFromParent();
+  label.material.map.dispose();
+  label.material.dispose();
+}
+
+function dropRemote(uid) {
+  const r = net.remotes.get(uid);
+  if (!r) return;
+  buildFollowers(r.rig, []);
+  disposeLabel(r.label);
+  r.rig.root.removeFromParent();
+  const cached = new Set(matCache.values());
+  r.rig.root.traverse(o => {
+    if (!o.isMesh) return;
+    if (!SHARED_GEO.has(o.geometry)) o.geometry.dispose();
+    if (!cached.has(o.material)) {
+      o.material.map?.dispose();
+      o.material.dispose();
+    }
+  });
+  net.remotes.delete(uid);
+  if (net.trade?.other === uid) endTrade("left");
+  refreshHud();
+}
+
+function updateRemotes(dt) {
+  const now = performance.now();
+  for (const [uid, r] of net.remotes) {
+    if (now - r.seen > STALE_MS) {
+      dropRemote(uid);
+      continue;
+    }
+    const { rig, data: d } = r;
+    const p = rig.root.position;
+    const dist = Math.hypot(d.x - p.x, d.z - p.z);
+    if (dist > 6) p.set(d.x, d.y, d.z);
+    else {
+      p.x = damp(p.x, d.x, 10, dt);
+      p.z = damp(p.z, d.z, 10, dt);
+      p.y = damp(p.y, d.y, 14, dt);
+    }
+    rig.facing = d.f;
+    const turn = Math.atan2(Math.sin(rig.facing - rig.body.rotation.y), Math.cos(rig.facing - rig.body.rotation.y));
+    rig.body.rotation.y += turn * (1 - Math.exp(-dt * 14));
+    const moving = dist > 0.08;
+    animatePlayer(rig, dt, moving, d.y > 0.05, moving ? SPEED : 0);
+    updateFollowers(rig, dt);
+    r.label.position.set(p.x, p.y + 4.3, p.z);
+    r.label.material.opacity = clamp((camera.position.distanceTo(r.label.position) - 2) / 3, 0, 1);
+  }
+}
+
+function updateOnline(dt) {
+  if (net.status !== "online" || net.world === null) return;
+  net.sendClock += dt;
+  if (net.sendClock >= SEND_EVERY) {
+    net.sendClock = 0;
+    sendPresence();
+  }
+  updateRemotes(dt);
+}
+
+// ---- Trading ----
+// Each side writes only its own part of trades/<id>: the pets it offers and,
+// once happy, a "ready" signature of both offers. When both signatures match
+// the current offers, each browser swaps the pets in its own save. Changing
+// either offer changes the signature, so both have to press Ready again.
+
+const tradeRef = id => net.fb.ref(net.db, `trades/${id}/${net.uid}`);
+const inviteRef = (to, from) => net.fb.ref(net.db, `invites/${to}/${from}`);
+
+function cleanOffer(raw) {
+  return Object.fromEntries(Object.entries(raw ?? {})
+    .map(([id, count]) => [Number(id), Math.round(Number(count))])
+    .filter(([id, count]) => Number.isInteger(id) && PETS[id] && count > 0 && count < 1000));
+}
+
+function tradeSignature(t) {
+  const listed = offer => Object.keys(offer).map(Number).sort((a, b) => a - b).map(id => [id, offer[id]]);
+  const iInvited = t.id.startsWith(`${net.uid}_`);
+  return JSON.stringify(iInvited ? [listed(t.mine), listed(t.theirs)] : [listed(t.theirs), listed(t.mine)]);
+}
+const tradeIsEmpty = t => Object.keys(t.mine).length === 0 && Object.keys(t.theirs).length === 0;
+
+function startTrade(other) {
+  const id = `${net.uid}_${other}_${Date.now().toString(36)}`;
+  openTrade(id, other, net.remotes.get(other).data.name);
+  net.fb.set(inviteRef(other, net.uid), { name: state.name, trade: id, t: net.fb.serverTimestamp() });
+}
+
+function openTrade(id, other, otherName) {
+  net.trade = { id, other, otherName, active: false, mine: {}, theirs: {}, myReady: "", theirReady: "", done: false, stop: null };
+  net.fb.onDisconnect(tradeRef(id)).remove();
+  net.fb.set(tradeRef(id), { name: state.name, ready: "" });
+  net.trade.stop = net.fb.onValue(net.fb.ref(net.db, `trades/${id}`), snap => onTradeChange(snap.val()));
+  openPanel("trade");
+}
+
+function receiveInvite(from, raw) {
+  const invite = { from, name: cleanName(String(raw?.name ?? "")) || "Player", trade: String(raw?.trade ?? "") };
+  const fresh = Number(raw?.t) > Date.now() + net.offset - 60000;
+  const busy = net.trade || net.invite || hatchFx || trailer || paused;
+  if (!fresh || busy || !invite.trade.startsWith(`${from}_${net.uid}_`)) {
+    declineInvite(invite);
+    return;
+  }
+  net.invite = invite;
+  sound.play("click");
+  openPanel("invite");
+}
+
+function declineInvite(invite) {
+  net.fb.remove(inviteRef(net.uid, invite.from));
+  if (!invite.trade.startsWith(`${invite.from}_${net.uid}_`)) return;
+  const mine = tradeRef(invite.trade);
+  net.fb.set(mine, { name: state.name, declined: true });
+  setTimeout(() => net.fb.remove(mine), 5000);
+}
+
+function onTradeChange(val) {
+  const t = net.trade;
+  if (!t || t.done) return;
+  const theirs = val?.[t.other];
+  if (theirs?.declined) {
+    endTrade("declined");
+    return;
+  }
+  if (!theirs) {
+    if (t.active) endTrade("left");
+    return;
+  }
+  t.active = true;
+  t.theirs = cleanOffer(theirs.offer);
+  t.theirReady = String(theirs.ready ?? "");
+  t.myReady = String(val[net.uid]?.ready ?? "");
+  const sig = tradeSignature(t);
+  if (t.myReady === sig && t.theirReady === sig && !tradeIsEmpty(t)) completeTrade();
+  else renderPanel();
+}
+
+function writeOffer() {
+  net.fb.update(tradeRef(net.trade.id), { offer: net.trade.mine, ready: "" });
+}
+
+function completeTrade() {
+  const t = net.trade;
+  t.done = true;
+  for (const [id, count] of Object.entries(t.mine)) {
+    if ((state.pets[id] ?? 0) < count) throw new Error(`Trade offers ${count} of pet ${id} but only ${state.pets[id] ?? 0} are owned`);
+  }
+  for (const [id, count] of Object.entries(t.mine)) {
+    state.pets[id] -= count;
+    if (state.pets[id] === 0) delete state.pets[id];
+  }
+  for (const [id, count] of Object.entries(t.theirs)) state.pets[id] = (state.pets[id] ?? 0) + count;
+  buildFollowers(player, equippedPets());
+  refreshHud();
+  saveProgress();
+  sound.play("champion");
+  confetti(player.root.position.x, 3, player.root.position.z, 50);
+  endTrade("done");
+}
+
+// reason: "done", "cancel" (this player closed it), "left" or "declined" (the other player did).
+function endTrade(reason) {
+  const t = net.trade;
+  net.trade = null;
+  t.stop();
+  if (!t.active && t.id.startsWith(`${net.uid}_`)) net.fb.remove(inviteRef(t.other, net.uid));
+  net.fb.onDisconnect(tradeRef(t.id)).cancel();
+  net.fb.remove(tradeRef(t.id));
+  if (panelKind === "trade") closePanel();
+  if (reason === "done") toast("Trade complete!", `With ${t.otherName}`);
+  if (reason === "left") toast("Trade cancelled", `${t.otherName} left the trade`);
+  if (reason === "declined") toast("No trade", `${t.otherName} said no thanks`);
+  refreshHud();
+}
+
+// Closing (or replacing) the invite or trade window answers it.
+function leavePanel(kind) {
+  if (kind === "invite" && net.invite) {
+    const invite = net.invite;
+    net.invite = null;
+    declineInvite(invite);
+  }
+  if (kind === "trade" && net.trade) endTrade("cancel");
 }
 
 // =====================================================================
@@ -3542,7 +4028,7 @@ function updateTrailer(dt) {
   trailer.shots[trailer.i].update(trailer.t, dt);
   updateNodes(dt);
   updateFlyers(dt);
-  updateFollowers(dt);
+  updateFollowers(player, dt);
   updateWorldFx(dt);
   particles.update(dt);
   shake = Math.max(0, shake - dt * 2.5);
@@ -3569,8 +4055,8 @@ function trailerWorld(w) {
   }
   player.kitMat.color.set(WORLDS[w].kit);
   player.capMat.color.set(WORLDS[w].accent);
-  equipGear(w, state.gear);
-  buildFollowers(PETS.filter(pet => pet.world === w && pet.rarity > 0).reverse());
+  equipGear(player, w, state.gear);
+  buildFollowers(player, PETS.filter(pet => pet.world === w && pet.rarity > 0).reverse());
 }
 
 function placeActor(x, z, facing) {
@@ -3579,7 +4065,7 @@ function placeActor(x, z, facing) {
   P.velocity.set(0, 0, 0);
   P.facing = facing;
   P.body.rotation.y = facing;
-  for (const f of followers) f.group.position.copy(followerSpot(f.slot));
+  for (const f of player.followers) f.group.position.copy(followerSpot(player, f.slot));
 }
 
 // Walks the athlete toward (tx, tz) and runs the normal animation rig.
@@ -3598,7 +4084,7 @@ function actorStep(dt, tx, tz, speed = 12) {
   }
   const turn = Math.atan2(Math.sin(P.facing - P.body.rotation.y), Math.cos(P.facing - P.body.rotation.y));
   P.body.rotation.y += turn * (1 - Math.exp(-dt * 14));
-  animatePlayer(dt, moving, false, moving ? speed : 0);
+  animatePlayer(player, dt, moving, false, moving ? speed : 0);
 }
 const actorIdle = dt => actorStep(dt, player.root.position.x, player.root.position.z);
 
@@ -3868,6 +4354,7 @@ addEventListener("pagehide", () => saveProgress());
 loadStep(0.86, "Building the stadium");
 await nextPaint();
 enterWorld();
+connectOnline();
 shownCash = state.cash;
 $("cash").textContent = fmt(state.cash);
 loadStep(1, "Let's play!");
@@ -3882,13 +4369,15 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
   if (trailer) updateTrailer(dt);
-  else if (!paused) {
+  else updateOnline(dt);
+  remoteGroup.visible = !trailer;
+  if (!trailer && !paused) {
     clock += dt;
     updatePlayer(dt);
     if (state.auto && state.bagCount < capacity() && nearestNode()) swing();
     updateNodes(dt);
     updateFlyers(dt);
-    updateFollowers(dt);
+    updateFollowers(player, dt);
     updateTriggers();
     updateWorldFx(dt);
     particles.update(dt);

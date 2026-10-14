@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "players": {
+      "$world": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('x').isNumber() && newData.child('z').isNumber()"
+        }
+      }
+    },
+    "invites": {
+      "$to": {
+        ".read": "auth != null && auth.uid === $to",
+        "$from": {
+          ".write": "auth != null && (auth.uid === $from || auth.uid === $to)"
+        }
+      }
+    },
+    "trades": {
+      "$trade": {
+        ".read": "auth != null && $trade.contains(auth.uid)",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && $trade.contains(auth.uid)"
+        }
+      }
+    }
+  }
+}
