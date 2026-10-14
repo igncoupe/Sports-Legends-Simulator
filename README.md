@@ -20,7 +20,7 @@ A 3D Roblox-style simulator game that runs in the browser, built for Chromebooks
 5. Unlock zones at the gates. Each zone's balls are worth 3x more.
 6. At the end of each world, a portal unlocks the next one. Later worlds also need rebirths.
 7. **Rebirth** to reset your cash, gear and bag for a permanent cash boost. You keep your worlds, zones and pets.
-8. Buy the Championship Trophy at the end of the Hockey Rink to become a Sports Legend.
+8. Buy the Championship Trophy at the end of the Golf Course to become a Sports Legend.
 
 Background music and sound effects are synthesized in the browser, and each has its own on/off switch in the pause menu.
 
@@ -37,10 +37,15 @@ Progress saves automatically every few seconds and right after every purchase. W
 | Soccer Stadium | Cleats (kick) | Training Pitch, Penalty Box, Golden Goal | |
 | Basketball Arena | Wristbands (slam dunk) | Practice Court, Three-Point Line, Slam Dunk Zone | 1 rebirth |
 | Football Field | Shoulder pads (tackle) | Practice Field, Midfield, Hail Mary Zone | 3 rebirths |
-| Baseball Park | Bat (swing) | Bullpen, Infield, Home Run Derby | 6 rebirths |
-| Hockey Rink | Hockey stick (slapshot) | Warm-Up Ice, Blue Line, Championship Ice | 10 rebirths |
+| Baseball Park | Bat (swing) | Bullpen, Infield, Home Run Derby | 5 rebirths |
+| Hockey Rink | Hockey stick (slapshot) | Warm-Up Ice, Blue Line, Power Play | 7 rebirths |
+| Tennis Court | Racket (forehand) | Baseline, Service Box, Match Point | 9 rebirths |
+| Volleyball Beach | Kneepads (spike) | Shoreline, Sand Court, Sunset Spike | 11 rebirths |
+| Bowling Alley | Bowling ball (bowl) | Gutter Lane, Spare Lane, Strike Zone | 13 rebirths |
+| Cricket Ground | Cricket bat (drive) | Nets, Outfield, Boundary Line | 15 rebirths |
+| Golf Course | Golf club (swing) | Driving Range, Fairway, Championship Green | 17 rebirths |
 
-The economy is tuned so a full run takes roughly 3 to 4 hours.
+Zone and rebirth prices were worked out backward from target times with a simulated player. The first zone opens after about 2 minutes, the first world takes about 11, and a full run takes about 5 hours.
 
 ## Run it
 
