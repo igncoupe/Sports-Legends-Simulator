@@ -3723,10 +3723,16 @@ function enterWorld() {
 // load or connect the game plays the same, just without other players.
 // =====================================================================
 
+// The game's Firebase project. These values identify the project; they are not
+// secrets. The security rules in database.rules.json are what protect the data.
 const FIREBASE_CONFIG = {
-  apiKey: "demo",
-  projectId: "demo-sports-legends",
-  databaseURL: "https://demo-sports-legends-default-rtdb.firebaseio.com",
+  apiKey: "AIzaSyA70bOJnFGXweKEMtSxd6W7-Ot3uarMgAQ",
+  authDomain: "sports-legends-f52f8.firebaseapp.com",
+  databaseURL: "https://sports-legends-f52f8-default-rtdb.firebaseio.com",
+  projectId: "sports-legends-f52f8",
+  storageBucket: "sports-legends-f52f8.firebasestorage.app",
+  messagingSenderId: "197346496686",
+  appId: "1:197346496686:web:5a117ac448e85a5cc81d3f",
 };
 const FIREBASE_SDK = "https://www.gstatic.com/firebasejs/12.19.0";
 const SEND_EVERY = 0.15;   // seconds between position updates
