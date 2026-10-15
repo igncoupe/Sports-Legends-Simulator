@@ -11,6 +11,7 @@ A 3D Roblox-style simulator game that runs in the browser, built for Chromebooks
 | Click | Hit with your gear, or click a pile to send your pets at it |
 | Drag | Look around |
 | Scroll | Zoom |
+| Enter or / | Chat (online) |
 | Esc | Pause menu |
 
 1. Break piles of balls. Every pile has fixed health shown in a bar over it, and pays cash the moment it breaks; the coins fly straight to you. **Auto** hits for you.
@@ -23,16 +24,16 @@ A 3D Roblox-style simulator game that runs in the browser, built for Chromebooks
 
 Background music and sound effects are synthesized in the browser, and each has its own on/off switch in the pause menu.
 
-The game opens on a title screen that plays a short trailer, filmed live in the game engine. Press **Play** or Enter to start. You can watch it again from the pause menu.
+The game opens on a title screen that plays a short trailer, filmed live in the game engine. Pick a name (or roll a random one with 🎲), then press **Play** or Enter to start. You can watch it again from the pause menu.
 
 ## Multiplayer
 
-On the GitHub Pages link, everyone playing in the same world sees each other run around, hit, and show off their pets, with name tags overhead. Press **Players** to see who's in your world, change your name, or ask someone to trade pets. In a trade, both players pick pets to swap and press **Ready**. If either offer changes, both have to press Ready again. A **Coin Flip** works the same way, except each player bets pets and the winner takes them all; each game commits to a secret before either reveals it, so neither side can rig the coin.
+On the GitHub Pages link, everyone online sees each other run around, hit, and show off their pets, with name tags overhead, whatever world each of them is in. Each player wears their own world's kit and gear. Press Enter to chat with everyone online: messages show in the corner and as a speech bubble over your head. The pause menu can turn chat off. Press **Players** to see who's online and which world they're in, change your name, or ask someone to trade pets. In a trade, both players pick pets to swap and press **Ready**. If either offer changes, both have to press Ready again. A **Coin Flip** works the same way, except each player bets pets and the winner takes them all; each game commits to a secret before either reveals it, so neither side can rig the coin. The flip plays out like a casino toss: a countdown, a long spin that slows down, a wobble on the edge (sometimes it tips over at the last second), then the result. Both players see the same toss.
 
 Multiplayer runs on a free [Firebase](https://firebase.google.com) Realtime Database with anonymous sign-in:
 
 - `FIREBASE_CONFIG` in `index.html` points at the project.
-- `database.rules.json` holds the security rules. Paste it into the Firebase console under **Realtime Database → Rules**. Players can only write their own position, their own invites and their own side of a trade.
+- `database.rules.json` holds the security rules. Paste it into the Firebase console under **Realtime Database → Rules**. Players can only write their own position, their own invites and their own side of a trade. Chat messages are capped at 100 characters, one every 1.5 seconds per player, and can't be edited or deleted by players.
 
 Where the Firebase library can't load (such as the claude.ai artifact), the game plays the same without other players, and the Players button says Offline.
 

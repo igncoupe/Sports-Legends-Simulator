@@ -53,12 +53,17 @@ button { font: inherit; }
   position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 16px;
   display: grid; gap: 8px; justify-items: start; pointer-events: none;
 }
-#money { display: flex; align-items: center; gap: 8px; font-size: 38px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#money {
+  display: flex; align-items: center; gap: 0.3em; padding: 0.14em 0.6em 0.14em 0.14em; border-radius: 999px;
+  background: rgb(20 26 51 / 0.6); border: 2px solid rgb(255 255 255 / 0.18);
+  font-size: clamp(20px, 5vw, 30px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: 0; text-shadow: 0 2px 0 rgb(0 0 0 / 0.35);
+}
 #money.bump { animation: bump 0.25s ease-out; }
 @keyframes bump { 50% { transform: scale(1.12); } }
 .coin {
-  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
-  background: var(--green); border: 3px solid var(--ink); font-size: 20px; -webkit-text-stroke: 0;
+  display: grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%;
+  background: var(--green); border: 2px solid var(--ink); font-size: 0.66em; text-shadow: none;
 }
 
 #side { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); display: grid; gap: 10px; }
@@ -146,13 +151,31 @@ body.hatching #hud, body.hatching #side, body.hatching #pause-btn, body.hatching
 .card .name { font-size: 15px; }
 .card .count { position: absolute; top: 6px; right: 9px; font-size: 14px; font-weight: 700; }
 .cards.small { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+#chat { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100% - 32px)); display: grid; gap: 6px; }
+#chat-log { display: grid; gap: 4px; }
+.chat-line { justify-self: start; max-width: 100%; padding: 4px 10px; border-radius: 10px; background: rgb(20 26 51 / 0.72); font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; transition: opacity 0.6s; }
+.chat-line b { color: var(--yellow); }
+.chat-line.note { color: var(--dim); font-style: italic; }
+.chat-line.old { opacity: 0; }
+#chat.typing .chat-line.old { opacity: 1; }
+#chat-input { box-sizing: border-box; width: 100%; padding: 8px 12px; font: inherit; font-size: 15px; color: var(--text); background: rgb(20 26 51 / 0.6); border: 2px solid rgb(255 255 255 / 0.25); border-radius: 10px; }
+#chat-input::placeholder { color: rgb(255 255 255 / 0.6); }
+#chat-input:focus { outline: none; border-color: var(--yellow); background: rgb(20 26 51 / 0.9); }
 .tabs.three { grid-template-columns: 1fr 1fr 1fr; }
 .row .buttons { gap: 6px; }
-.coin { width: 130px; height: 130px; margin: 6px auto; display: grid; place-items: center; border-radius: 50%; border: 4px solid var(--ink); background: radial-gradient(circle at 35% 35%, #fff4b8, #fbbf24 55%, #b45309); color: var(--ink); font-size: 20px; font-weight: 700; text-align: center; overflow: hidden; }
-.coin.spin { animation: coinspin 0.45s linear infinite; }
-.coin.land { animation: coinland 0.9s ease-out; }
+.flip-coin { width: 130px; height: 130px; margin: 6px auto; display: grid; place-items: center; border-radius: 50%; border: 4px solid var(--ink); background: radial-gradient(circle at 35% 35%, #fff4b8, #fbbf24 55%, #b45309); color: var(--ink); font-size: 20px; font-weight: 700; text-align: center; overflow: hidden; }
+.flip-coin[data-face="1"] { background: radial-gradient(circle at 35% 35%, #ffffff, #cbd5e1 55%, #64748b); }
+.flip-coin span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flip-coin.spin { animation: coinspin 0.45s linear infinite; }
+.flip-coin.win { box-shadow: 0 0 0 8px rgb(255 200 61 / 0.45), 0 0 50px 14px rgb(255 200 61 / 0.6); animation: coinpop 0.5s; }
+.flip-coin.lose { filter: grayscale(0.7) brightness(0.75); animation: coinshake 0.5s; }
 @keyframes coinspin { to { transform: rotateY(360deg); } }
-@keyframes coinland { from { transform: rotateY(1080deg) scale(1.25); } to { transform: none; } }
+@keyframes coinpop { 50% { scale: 1.3; } }
+@keyframes coinshake { 25% { translate: -10px 0; } 75% { translate: 10px 0; } }
+.flip-stage { height: 200px; display: grid; place-items: center; }
+.flip-caption { margin: 0; min-height: 32px; text-align: center; font-size: 24px; font-weight: 700; }
+.flip-caption.win { color: var(--yellow); font-size: 32px; }
+.flip-caption.lose { color: var(--red); }
 .card.marked { outline: 3px solid var(--red); outline-offset: -3px; }
 .card .del { position: absolute; top: 6px; left: 9px; font-size: 14px; font-weight: 700; color: var(--red); }
 button.card { font: inherit; color: inherit; border: 0; cursor: pointer; }
@@ -260,9 +283,13 @@ kbd {
 #card-sub { font-size: clamp(16px, 2.4vw, 22px); -webkit-text-stroke: 5px var(--ink); }
 .title-actions { display: grid; justify-items: center; gap: 8px; }
 .title-actions p { margin: 0; font-size: 15px; -webkit-text-stroke: 4px var(--ink); }
+.title-name { pointer-events: auto; display: flex; gap: 8px; }
+.title-name input { width: min(240px, 60vw); padding: 10px 14px; font: inherit; font-size: 22px; font-weight: 700; text-align: center; color: var(--ink); background: var(--text); border: 3px solid var(--ink); border-radius: 14px; }
+.title-name input:focus { outline: 3px solid var(--yellow); }
+.title-name .btn { font-size: 22px; padding: 6px 14px; }
 #play { pointer-events: auto; font-size: 30px; padding: 12px 70px; animation: breathe 1.6s ease-in-out infinite; }
 @keyframes breathe { 50% { scale: 1.06; } }
-body.title #hud, body.title #side, body.title #pause-btn { visibility: hidden; }
+body.title #hud, body.title #side, body.title #pause-btn, body.title #chat, body.paused #chat, body.hatching #chat { visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal, .beam, .logo span, .logo-tag, .ball, #play, #card.show { animation: none; }
@@ -285,6 +312,10 @@ body.title #hud, body.title #side, body.title #pause-btn { visibility: hidden; }
   <button id="auto" class="sq gray" type="button">Auto<small>Off</small></button>
   <button id="players" class="sq blue" type="button">Players<small id="players-count">...</small></button>
 </div>
+<div id="chat" hidden>
+  <div id="chat-log" aria-live="polite"></div>
+  <form id="chat-form"><input id="chat-input" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Press Enter to chat" aria-label="Chat message"></form>
+</div>
 <button id="pause-btn" class="btn gray" type="button" aria-label="Pause">
   <svg width="20" height="22" viewBox="0 0 20 22" fill="currentColor" aria-hidden="true"><rect x="2" y="1" width="6" height="20" rx="2"/><rect x="12" y="1" width="6" height="20" rx="2"/></svg>
 </button>
@@ -293,6 +324,10 @@ body.title #hud, body.title #side, body.title #pause-btn { visibility: hidden; }
   <div id="title-logo"></div>
   <div id="card" class="outlined"><div id="card-title"></div><div id="card-sub"></div></div>
   <div class="title-actions">
+    <div class="title-name">
+      <input id="title-name" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Your name" aria-label="Your name">
+      <button id="name-dice" class="btn blue" type="button" aria-label="Random name">🎲</button>
+    </div>
     <button id="play" class="btn green" type="button">Play</button>
     <p class="outlined">Press Esc during the game to pause</p>
   </div>
@@ -546,7 +581,7 @@ const cleanName = text => text.replace(/[^A-Za-z0-9 ]/g, "").replace(/\s+/g, " "
 
 function defaultState() {
   // gear and training hold the tier bought in each world: { [world]: tier }
-  return { cash: 0, gear: {}, training: {}, zones: 1, world: 0, pets: {}, auto: false, muted: false, music: true, champion: false, name: randomName() };
+  return { cash: 0, gear: {}, training: {}, zones: 1, world: 0, pets: {}, auto: false, muted: false, music: true, chat: true, champion: false, name: randomName() };
 }
 const state = defaultState();
 let dirty = false;
@@ -809,6 +844,18 @@ const SFX = {
     s.noise({ dur: 0.6, vol: 0.18, freq: 300, to: 3000, filter: "bandpass", q: 1.5 });
     [392, 523, 659, 784].forEach((f, i) => s.tone(f, { type: "sawtooth", dur: 0.55, vol: 0.07, at: 0.25 + i * 0.07 }));
   },
+  beep: s => s.tone(880, { type: "square", dur: 0.12, vol: 0.08 }),
+  flipTick: s => s.tone(2400, { type: "square", dur: 0.02, vol: 0.05 }),
+  drumroll: s => {
+    for (let i = 0; i < 90; i++) s.noise({ dur: 0.045, vol: 0.04 + i * 0.0018, freq: 2600, filter: "bandpass", q: 0.8, at: i * 0.05 });
+  },
+  heartbeat: s => {
+    for (let i = 0; i < 3; i++) {
+      s.tone(75, { dur: 0.14, vol: 0.45, to: 45, at: i * 0.55 });
+      s.tone(65, { dur: 0.12, vol: 0.32, to: 40, at: i * 0.55 + 0.2 });
+    }
+  },
+  lose: s => [392, 349, 311, 262].forEach((f, i) => s.tone(f, { type: "triangle", dur: 0.45, vol: 0.13, to: f * 0.96, at: i * 0.28 })),
   rebirth: s => {
     s.tone(110, { type: "sawtooth", dur: 1.2, vol: 0.12, to: 880 });
     [523, 659, 784, 1046].forEach((f, i) => s.tone(f, { type: "triangle", dur: 1, vol: 0.12, at: 0.6 + i * 0.05 }));
@@ -2440,7 +2487,8 @@ addEventListener("keydown", e => {
   sound.unlock();
   if (e.code === "Escape") {
     e.preventDefault();
-    handleEscape();
+    if (document.activeElement === $("chat-input")) $("chat-input").blur();
+    else handleEscape();
     return;
   }
   if (trailer && e.code === "Enter") {
@@ -2449,6 +2497,11 @@ addEventListener("keydown", e => {
     return;
   }
   if (e.target instanceof HTMLInputElement) return;
+  if ((e.code === "Enter" || e.code === "Slash") && !$("chat").hidden && !paused && !hatchFx) {
+    e.preventDefault();
+    $("chat-input").focus();
+    return;
+  }
   if (!GAME_KEYS.has(e.code)) return;
   e.preventDefault();
   if (!paused) keys.add(e.code);
@@ -3149,7 +3202,8 @@ function refreshHud() {
   $("auto").innerHTML = `Auto<small>${state.auto ? "On" : "Off"}</small>`;
   $("auto").classList.toggle("green", state.auto);
   $("auto").classList.toggle("gray", !state.auto);
-  $("players-count").textContent = net.status === "online" ? `${net.remotes.size} here` : net.status === "offline" ? "Offline" : "...";
+  $("chat").hidden = !(net.status === "online" && state.chat);
+  $("players-count").textContent = net.status === "online" ? `${net.remotes.size} online` : net.status === "offline" ? "Offline" : "...";
   renderPanel();
   dirty = true;
 }
@@ -3244,6 +3298,7 @@ const RENDER = {
     <div class="buttons">
       <button class="btn blue" type="button" data-action="music">Music: ${state.music ? "On" : "Off"}</button>
       <button class="btn blue" type="button" data-action="mute">Sounds: ${state.muted ? "Off" : "On"}</button>
+      <button class="btn blue" type="button" data-action="chat">Chat: ${state.chat ? "On" : "Off"}</button>
     </div>
     <button class="btn purple wide" type="button" data-action="trailer">Watch trailer</button>
     <div class="controls">
@@ -3358,7 +3413,7 @@ const RENDER = {
     const others = [...net.remotes].filter(([, r]) => r.data);
     const rows = others.map(([uid, r]) => `
       <div class="row"><img src="${r.data.pets.length ? thumbs.pet[r.data.pets[0]] : thumbs.egg[state.world]}" alt="">
-        <div><div class="name">${escapeHtml(r.data.name)}</div><div class="sub">${r.data.pets.length} pet${r.data.pets.length === 1 ? "" : "s"} following</div></div>
+        <div><div class="name">${escapeHtml(r.data.name)}</div><div class="sub">${WORLDS[r.data.w].icon} ${WORLDS[r.data.w].name} · ${r.data.pets.length} pet${r.data.pets.length === 1 ? "" : "s"}</div></div>
         <div class="buttons"><button class="btn purple" type="button" data-action="tradeWith" data-arg="${uid}"${net.trade ? " disabled" : ""}>Trade</button>
         <button class="btn yellow" type="button" data-action="flipWith" data-arg="${uid}"${net.trade ? " disabled" : ""}>Flip</button></div>
       </div>`).join("");
@@ -3366,7 +3421,7 @@ const RENDER = {
       <h2>Players</h2>
       <div class="row mine"><img src="${thumbs.egg[state.world]}" alt=""><div><div class="name">${escapeHtml(state.name)}</div><div class="sub">That's you</div></div>
         <button class="btn blue" type="button" data-action="rename">Change name</button></div>
-      <p class="note">${others.length ? `Also in ${world.def.name}:` : `Nobody else is in ${world.def.name} right now. Send a friend the game link!`}</p>
+      <p class="note">${others.length ? "Also online:" : "Nobody else is online right now. Send a friend the game link!"}</p>
       ${rows}`;
   },
   rename: () => `
@@ -3387,14 +3442,6 @@ const RENDER = {
     if (!t.active) {
       return `<h2>${flip ? "Coin flip" : "Trade"}</h2><p class="note">Waiting for <b>${name}</b> to answer...</p><button class="btn red wide" type="button" data-action="close">Cancel</button>`;
     }
-    if (flip && t.secret) {
-      const face = t.result === "won" ? "You" : t.result === "lost" ? name : "?";
-      return `
-        <h2>Coin flip with ${name}</h2>
-        <div class="coin ${t.result ? "land" : "spin"}">${face}</div>
-        <p class="note" style="text-align:center">${t.result === "won" ? '<span class="ok">You won! Their pets are yours.</span>' : t.result === "lost" ? `<span class="no">${name} won your bet.</span>` : "Flipping..."}</p>
-        ${t.result ? "" : '<button class="btn red wide" type="button" data-action="close">Cancel</button>'}`;
-    }
     const sig = tradeSignature(t);
     const iReady = t.myReady === sig;
     const theyReady = t.theirReady === sig;
@@ -3407,6 +3454,23 @@ const RENDER = {
     const offer = (o, action, none) => Object.keys(o).length
       ? Object.entries(o).map(([id, count]) => petCard(id, count, action)).join("")
       : `<p class="empty">${none}</p>`;
+    if (flip && t.show) {
+      return `
+        <h2>Coin flip with ${name}</h2>
+        <div class="flip-stage"><div id="coin" class="flip-coin"><span id="coin-face"></span></div></div>
+        <p id="flip-caption" class="flip-caption"></p>
+        <div class="trade-cols">
+          <div><h3>You bet</h3><div class="cards small">${offer(t.mine, "", "")}</div></div>
+          <div><h3>They bet</h3><div class="cards small">${offer(t.theirs, "", "")}</div></div>
+        </div>`;
+    }
+    if (flip && t.secret) {
+      return `
+        <h2>Coin flip with ${name}</h2>
+        <div class="flip-stage"><div class="flip-coin spin"><span>?</span></div></div>
+        <p class="flip-caption">Locking in the bets...</p>
+        <button class="btn red wide" type="button" data-action="close">Cancel</button>`;
+    }
     const spare = PETS.filter(pet => (state.pets[pet.id] ?? 0) > (t.mine[pet.id] ?? 0)).sort((a, b) => b.power - a.power);
     return `
       <h2>${flip ? "Coin flip" : "Trade"} with ${name}</h2>
@@ -3547,6 +3611,7 @@ const ACTIONS = {
   resume: () => resume(),
   trailer: () => showTitle(),
   mute: () => { state.muted = !state.muted; },
+  chat: () => { state.chat = !state.chat; },
   music: () => {
     state.music = !state.music;
     if (state.music) music.start();
@@ -3701,7 +3766,6 @@ function travelTo(w, card = [WORLDS[w].name, `World ${w + 1}`]) {
 function enterWorld() {
   renderGearThumbs(state.world);
   buildWorld(state.world);
-  joinWorld(state.world);
   dressPlayer();
   player.root.position.set(0, 0, SPAWN_Z);
   player.velocity.set(0, 0, 0);
@@ -3749,8 +3813,6 @@ const net = {
   db: null,
   uid: null,
   offset: 0,            // server clock minus local clock, in ms
-  world: null,          // the world whose player list we're in
-  listeners: [],
   remotes: new Map(),   // uid -> { rig, label, data, seen }
   sendClock: 0,
   sentAt: 0,
@@ -3783,7 +3845,7 @@ async function connectOnline() {
   onValue(ref(net.db, ".info/connected"), snap => {
     net.status = snap.val() ? "online" : "connecting";
     // After a dropped connection the server has removed us; arm it again and resend.
-    if (snap.val() && net.world !== null) {
+    if (snap.val()) {
       onDisconnect(meRef()).remove();
       net.sent = "";
     }
@@ -3796,34 +3858,26 @@ async function connectOnline() {
     net.invite = null;
     if (panelKind === "invite") closePanel();
   });
-  joinWorld(state.world);
+  joinPlayers();
+  startChat();
 }
 
-const meRef = () => net.fb.ref(net.db, `players/${net.world}/${net.uid}`);
+const meRef = () => net.fb.ref(net.db, `players/${net.uid}`);
 
-// Leaves the old world's player list and joins this one.
-function joinWorld(w) {
-  if (!net.uid) return;
-  const { ref, remove, onDisconnect, onChildAdded, onChildChanged, onChildRemoved } = net.fb;
-  if (net.world !== null) remove(meRef());
-  net.listeners.forEach(stop => stop());
-  for (const uid of [...net.remotes.keys()]) dropRemote(uid);
-  net.world = w;
+// Everyone online is in one list, whatever world they're in.
+function joinPlayers() {
+  const { ref, onDisconnect, onChildAdded, onChildChanged, onChildRemoved } = net.fb;
   onDisconnect(meRef()).remove();
-  net.sent = "";
-  const list = ref(net.db, `players/${w}`);
-  net.listeners = [
-    onChildAdded(list, snap => upsertRemote(snap.key, snap.val())),
-    onChildChanged(list, snap => upsertRemote(snap.key, snap.val())),
-    onChildRemoved(list, snap => dropRemote(snap.key)),
-  ];
-  refreshHud();
+  const list = ref(net.db, "players");
+  onChildAdded(list, snap => upsertRemote(snap.key, snap.val()));
+  onChildChanged(list, snap => upsertRemote(snap.key, snap.val()));
+  onChildRemoved(list, snap => dropRemote(snap.key));
 }
 
 function presenceData() {
   const p = player.root.position;
   const r2 = v => Math.round(v * 100) / 100;
-  return { name: state.name, x: r2(p.x), z: r2(p.z), y: r2(p.y), f: r2(player.facing), s: player.swings, g: gearTier(), pets: equippedPets().map(pet => pet.id) };
+  return { name: state.name, w: state.world, x: r2(p.x), z: r2(p.z), y: r2(p.y), f: r2(player.facing), s: player.swings, g: gearTier(), pets: equippedPets().map(pet => pet.id) };
 }
 
 function sendPresence() {
@@ -3841,6 +3895,7 @@ function cleanRemote(raw) {
   const int = (v, lo, hi) => Math.round(num(v, lo, hi));
   return {
     name: cleanName(String(raw.name ?? "")) || "Player",
+    w: int(raw.w, 0, WORLDS.length - 1),
     x: num(raw.x, -HALF, HALF),
     z: num(raw.z, END_Z, BACK_Z),
     y: num(raw.y, 0, 20),
@@ -3864,8 +3919,6 @@ function upsertRemote(uid, raw) {
     rig.root.position.set(d.x, d.y, d.z);
     rig.facing = d.f;
     rig.body.rotation.y = d.f;
-    rig.kitMat.color.set(WORLDS[net.world].kit);
-    rig.capMat.color.set(WORLDS[net.world].accent);
     r = { rig, label: null, data: null, seen: 0 };
     net.remotes.set(uid, r);
   }
@@ -3875,12 +3928,17 @@ function upsertRemote(uid, raw) {
     r.label = labelSprite(d.name, "#ffffff", 3.4);
     remoteGroup.add(r.label);
   }
-  if (old?.g !== d.g) equipGear(r.rig, net.world, d.g);
+  // Players wear their own world's kit and gear.
+  if (old?.w !== d.w) {
+    r.rig.kitMat.color.set(WORLDS[d.w].kit);
+    r.rig.capMat.color.set(WORLDS[d.w].accent);
+  }
+  if (old?.w !== d.w || old?.g !== d.g) equipGear(r.rig, d.w, d.g);
   if (old?.pets.join() !== d.pets.join()) buildFollowers(r.rig, d.pets.map(id => PETS[id]));
   if (old && old.s !== d.s) r.rig.swingT = 0;
   r.data = d;
   r.seen = performance.now();
-  if (!old || old.name !== d.name || old.pets.join() !== d.pets.join()) refreshHud();
+  if (!old || old.name !== d.name || old.w !== d.w || old.pets.join() !== d.pets.join()) refreshHud();
 }
 
 function disposeLabel(label) {
@@ -3894,6 +3952,7 @@ function dropRemote(uid) {
   if (!r) return;
   buildFollowers(r.rig, []);
   disposeLabel(r.label);
+  if (r.rig.bubble) disposeLabel(r.rig.bubble);
   r.rig.root.removeFromParent();
   const cached = new Set(matCache.values());
   r.rig.root.traverse(o => {
@@ -3932,18 +3991,139 @@ function updateRemotes(dt) {
     animatePlayer(rig, dt, moving, d.y > 0.05, moving ? SPEED : 0);
     updateFollowers(rig, dt);
     r.label.position.set(p.x, p.y + 4.3, p.z);
+    updateBubble(rig, dt, 5.6);
     r.label.material.opacity = clamp((camera.position.distanceTo(r.label.position) - 2) / 3, 0, 1);
   }
 }
 
 function updateOnline(dt) {
-  if (net.status !== "online" || net.world === null) return;
+  if (net.status !== "online") return;
   net.sendClock += dt;
   if (net.sendClock >= SEND_EVERY) {
     net.sendClock = 0;
     sendPresence();
   }
   updateRemotes(dt);
+  updateBubble(player, dt, 4.4);
+  updateFlipShow();
+}
+
+
+// ---- Chat ----
+// One room for everyone online. A message shows in the corner and as a bubble
+// over the sender's head. The database rules allow one message per 1.5 s per
+// player and 100 characters each.
+const CHAT_MAX = 100;
+const CHAT_GAP_MS = 1600;
+const BUBBLE_TIME = 5;
+let chatSentAt = 0;
+
+function startChat() {
+  const { ref, query, limitToLast, onChildAdded } = net.fb;
+  onChildAdded(query(ref(net.db, "chat"), limitToLast(30)), snap => receiveChat(snap.val()));
+}
+
+function chatLine(name, text, kind = "") {
+  const line = document.createElement("div");
+  line.className = `chat-line ${kind}`;
+  if (name) {
+    const who = document.createElement("b");
+    who.textContent = `${name}: `;
+    line.append(who);
+  }
+  line.append(text);
+  const log = $("chat-log");
+  log.append(line);
+  while (log.children.length > 8) log.firstChild.remove();
+  setTimeout(() => line.classList.add("old"), 12000);
+}
+
+function receiveChat(raw) {
+  const text = String(raw?.text ?? "").slice(0, CHAT_MAX);
+  if (!text) return;
+  chatLine(cleanName(String(raw.name ?? "")) || "Player", text);
+  const fresh = Number(raw.t) > Date.now() + net.offset - 10000;
+  if (!fresh || !state.chat) return;
+  if (raw.uid === net.uid) showBubble(player, text);
+  else {
+    const r = net.remotes.get(raw.uid);
+    if (r) showBubble(r.rig, text);
+  }
+}
+
+function sendChat(text) {
+  if (performance.now() - chatSentAt < CHAT_GAP_MS) {
+    chatLine("", "Slow down a little.", "note");
+    return false;
+  }
+  chatSentAt = performance.now();
+  const { ref, push, update, serverTimestamp } = net.fb;
+  const key = push(ref(net.db, "chat")).key;
+  update(ref(net.db), {
+    [`chat/${key}`]: { uid: net.uid, name: state.name, text, t: serverTimestamp() },
+    [`chatTimes/${net.uid}`]: serverTimestamp(),
+  }).catch(() => chatLine("", "That message didn't send. Slow down a little.", "note"));
+  return true;
+}
+
+$("chat-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const input = $("chat-input");
+  const text = input.value.replace(/\s+/g, " ").trim().slice(0, CHAT_MAX);
+  if (text && !sendChat(text)) return;
+  input.value = "";
+  input.blur();
+});
+$("chat-input").addEventListener("focus", () => {
+  keys.clear();
+  $("chat").classList.add("typing");
+});
+$("chat-input").addEventListener("blur", () => $("chat").classList.remove("typing"));
+
+// A speech bubble that floats over an athlete for a few seconds.
+function showBubble(rig, text) {
+  if (rig.bubble) disposeLabel(rig.bubble);
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 192;
+  const g = c.getContext("2d");
+  g.font = '600 34px "Fredoka", sans-serif';
+  const lines = [];
+  for (const word of text.split(" ")) {
+    const last = lines.at(-1);
+    if (last !== undefined && g.measureText(`${last} ${word}`).width < 460) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  const shown = lines.slice(0, 3);
+  if (lines.length > 3) shown[2] += "...";
+  const h = 24 + shown.length * 42;
+  g.fillStyle = "#ffffff";
+  g.strokeStyle = "#141a33";
+  g.lineWidth = 6;
+  g.beginPath(); g.roundRect(6, c.height - h - 6, c.width - 12, h, 22); g.fill(); g.stroke();
+  g.fillStyle = "#141a33";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  shown.forEach((line, i) => g.fillText(line, c.width / 2, c.height - h - 6 + 33 + i * 42, 470));
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  rig.bubble = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false }));
+  rig.bubble.scale.set(4.6, 4.6 * (c.height / c.width), 1);
+  rig.bubbleT = BUBBLE_TIME;
+  remoteGroup.add(rig.bubble);
+}
+
+function updateBubble(rig, dt, height) {
+  if (!rig.bubble) return;
+  rig.bubbleT -= dt;
+  if (rig.bubbleT <= 0) {
+    disposeLabel(rig.bubble);
+    rig.bubble = null;
+    return;
+  }
+  const p = rig.root.position;
+  rig.bubble.position.set(p.x, p.y + height, p.z);
+  rig.bubble.material.opacity = Math.min(1, rig.bubbleT * 2);
 }
 
 // ---- Trading and coin flips ----
@@ -4055,11 +4235,13 @@ async function flipStep(t, sig, mine, theirs) {
   const iInvited = t.id.startsWith(`${net.uid}_`);
   const coin = await sha256(iInvited ? t.secret + theirs.reveal + sig : theirs.reveal + t.secret + sig);
   const inviterWins = parseInt(coin.slice(0, 2), 16) % 2 === 0;
-  settleFlip(t, iInvited === inviterWins);
+  settleFlip(t, iInvited === inviterWins, coin);
 }
 
-// Pays out a coin flip in this player's save, then shows the coin landing.
-function settleFlip(t, won) {
+// Pays out a coin flip in this player's save straight away (so closing the
+// game mid-show changes nothing), then plays the flip. Both players' shows come
+// from the same coin hash, so they see the same toss, wobble and landing.
+function settleFlip(t, won, coin) {
   t.done = true;
   if (won) {
     for (const [id, count] of Object.entries(t.theirs)) state.pets[id] = (state.pets[id] ?? 0) + count;
@@ -4070,14 +4252,83 @@ function settleFlip(t, won) {
       if (state.pets[id] === 0) delete state.pets[id];
     }
   }
-  buildFollowers(player, equippedPets());
+  t.result = won ? "won" : "lost";
+  const final = won ? 0 : 1; // face 0 is this player's side of the coin, 1 the other player's
+  const fakeout = parseInt(coin.slice(2, 4), 16) < 128;
+  t.show = { start: performance.now(), final, fakeout, teeter: fakeout ? 1 - final : final, halfFlips: 24 + (parseInt(coin.slice(4, 6), 16) % 6) * 2, events: new Set() };
+  renderPanel();
   refreshHud();
   saveProgress();
-  t.result = won ? "won" : "lost";
-  renderPanel();
-  sound.play(won ? "champion" : "full");
-  if (won) confetti(player.root.position.x, 3, player.root.position.z, 50);
-  setTimeout(() => endTrade(t.result), 2600);
+}
+
+// Seconds for each part of the show.
+const FLIP = { COUNT: 1.5, SPIN: 4.6, TEETER: 1.6, TIP: 0.5, HOLD: 3 };
+
+function updateFlipShow() {
+  const t = net.trade;
+  const coinEl = $("coin");
+  if (!t?.show || !coinEl) return;
+  const s = t.show;
+  const time = (performance.now() - s.start) / 1000;
+  const once = (key, fn) => {
+    if (s.events.has(key)) return;
+    s.events.add(key);
+    fn();
+  };
+  const spinEnd = FLIP.COUNT + FLIP.SPIN;
+  const teeterEnd = spinEnd + FLIP.TEETER;
+  const landAt = teeterEnd + (s.fakeout ? FLIP.TIP : 0);
+  let face, squash = 1, lift = 0, caption;
+  if (time < FLIP.COUNT) {
+    const n = 3 - Math.floor((time / FLIP.COUNT) * 3);
+    once(`count${n}`, () => sound.play("beep"));
+    face = s.teeter;
+    caption = `${n}...`;
+  } else if (time < spinEnd) {
+    const u = (time - FLIP.COUNT) / FLIP.SPIN;
+    once("toss", () => sound.play("drumroll"));
+    const flips = s.halfFlips * (1 - (1 - u) ** 3);
+    const k = Math.round(flips);
+    once(`flip${k}`, () => sound.play("flipTick"));
+    face = (s.teeter + k) % 2;
+    squash = Math.abs(Math.cos(Math.PI * flips));
+    lift = Math.sin(Math.PI * u) * 80;
+    caption = u < 0.45 ? "Flipping..." : u < 0.85 ? "Slowing down..." : "Here it comes...";
+  } else if (time < teeterEnd) {
+    const v = (time - spinEnd) / FLIP.TEETER;
+    once("teeter", () => sound.play("heartbeat"));
+    face = s.teeter;
+    squash = 1 - Math.abs(Math.sin(v * Math.PI * 3.5)) * (0.35 + 0.6 * v);
+    caption = "It's on the edge...";
+  } else if (time < landAt) {
+    const w = (time - teeterEnd) / FLIP.TIP;
+    face = w < 0.5 ? s.teeter : s.final;
+    squash = Math.abs(Math.cos(Math.PI * w));
+    caption = "It's tipping over...";
+  } else {
+    face = s.final;
+    once("land", () => revealFlip(t));
+    caption = t.result === "won" ? "YOU WIN!" : `${t.otherName} wins...`;
+  }
+  $("coin-face").textContent = face === 0 ? "YOU" : t.otherName;
+  coinEl.dataset.face = face;
+  coinEl.style.transform = `translateY(${-lift}px) scaleX(${Math.max(0.04, squash)})`;
+  $("flip-caption").textContent = caption;
+}
+
+function revealFlip(t) {
+  const won = t.result === "won";
+  buildFollowers(player, equippedPets());
+  $("coin").classList.add(won ? "win" : "lose");
+  $("flip-caption").classList.add(won ? "win" : "lose");
+  sound.play(won ? "champion" : "lose");
+  if (won) {
+    sound.play("cheer");
+    confetti(player.root.position.x, 3, player.root.position.z, 80);
+  }
+  setTimeout(() => {
+    if (net.trade === t) endTrade(t.result);
+  }, FLIP.HOLD * 1000);
 }
 
 function writeOffer() {
@@ -4108,6 +4359,11 @@ function endTrade(reason) {
   const t = net.trade;
   if (!t) return;
   net.trade = null;
+  // A settled coin flip closed early still shows its result.
+  if (t.result) {
+    reason = t.result;
+    buildFollowers(player, equippedPets());
+  }
   t.stop();
   if (!t.active && t.id.startsWith(`${net.uid}_`)) net.fb.remove(inviteRef(t.other, net.uid));
   net.fb.onDisconnect(tradeRef(t.id)).cancel();
@@ -4153,11 +4409,20 @@ function showTitle() {
   logo.removeAttribute("id");
   $("title-logo").replaceChildren(logo);
   $("title").hidden = false;
+  $("title-name").value = state.name;
   trailer = { i: -1, t: 0, shots: trailerShots() };
   nextShot();
 }
 
 function play() {
+  const name = cleanName($("title-name").value);
+  if (!name) {
+    $("title-name").focus();
+    return;
+  }
+  state.name = name;
+  saveProgress();
+  $("title-name").blur();
   trailer = null;
   showCard(null);
   particles.items = [];
@@ -4168,6 +4433,10 @@ function play() {
   resume();
 }
 $("play").addEventListener("click", play);
+$("name-dice").addEventListener("click", () => {
+  $("title-name").value = randomName();
+  sound.play("click");
+});
 
 function showCard(card) {
   const el = $("card");

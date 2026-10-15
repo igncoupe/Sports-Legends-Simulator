@@ -1,12 +1,10 @@
 {
   "rules": {
     "players": {
-      "$world": {
-        ".read": "auth != null",
-        "$uid": {
-          ".write": "auth != null && auth.uid === $uid",
-          ".validate": "newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('x').isNumber() && newData.child('z').isNumber()"
-        }
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('w').isNumber() && newData.child('x').isNumber() && newData.child('z').isNumber()"
       }
     },
     "invites": {
@@ -23,6 +21,19 @@
         "$uid": {
           ".write": "auth != null && auth.uid === $uid && $trade.contains(auth.uid)"
         }
+      }
+    },
+    "chat": {
+      ".read": "auth != null",
+      "$msg": {
+        ".write": "auth != null && !data.exists() && newData.exists()",
+        ".validate": "newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 100 && newData.child('t').val() === now && newData.parent().parent().child('chatTimes').child(auth.uid).val() === now && (!root.child('chatTimes').child(auth.uid).exists() || root.child('chatTimes').child(auth.uid).val() < now - 1500)"
+      }
+    },
+    "chatTimes": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.val() === now"
       }
     }
   }
