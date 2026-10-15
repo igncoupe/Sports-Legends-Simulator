@@ -37,6 +37,10 @@ Multiplayer runs on a free [Firebase](https://firebase.google.com) Realtime Data
 
 Where the Firebase library can't load (such as the claude.ai artifact), the game plays the same without other players, and the Players button says Offline.
 
+## Test mode
+
+Add `?test` to the end of the game link to get a **Test: max money + every pet** button in the pause menu. It sets your cash to $1Dd and adds one of every pet to your real save.
+
 ## Saving
 
 Progress saves automatically every few seconds and right after every purchase. When the game is opened as a claude.ai artifact, it saves to a private document tied to your Claude account, so it survives cleared browser data and follows you to other computers. Any other copy (GitHub Pages, a downloaded file) saves in the browser. The pause menu shows where your progress is saved and when it last saved, and has a Reset progress button.

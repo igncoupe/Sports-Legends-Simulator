@@ -692,13 +692,21 @@ const easeOutBack = t => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;
 const hex = c => `#${c.toString(16).padStart(6, "0")}`;
 
 const SUFFIXES = ["", "K", "M", "B", "T", "Qd", "Qn", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd"];
+// Picks the suffix after rounding, so 999,999 shows as 1M rather than 1000K.
 function fmt(n) {
-  let i = 0;
-  while (n >= 1000 && i < SUFFIXES.length - 1) { n /= 1000; i++; }
-  if (i === 0) return String(Math.floor(n));
-  return parseFloat(n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0)) + SUFFIXES[i];
+  if (n < 1000) return String(Math.floor(n));
+  const round = v => parseFloat(v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0));
+  let i = Math.min(SUFFIXES.length - 1, Math.floor(Math.log10(n) / 3));
+  let v = round(n / 1000 ** i);
+  if (v >= 1000 && i < SUFFIXES.length - 1) v = round(n / 1000 ** ++i);
+  return v + SUFFIXES[i];
 }
 const money = n => `$${fmt(n)}`;
+
+// Opening the game with ?test on the link adds a pause-menu button that tops up
+// cash and adds one of every pet to the save, for trying things out.
+const TEST_MODE = new URLSearchParams(location.search).has("test");
+const TEST_CASH = 1000 ** (SUFFIXES.length - 1); // $1Dd, the biggest amount with a name
 const boostText = n => `x${parseFloat(n.toFixed(2))}`;
 
 function mulberry32(seed) {
@@ -3316,6 +3324,7 @@ const RENDER = {
       <button class="btn blue" type="button" data-action="chat">Chat: ${state.chat ? "On" : "Off"}</button>
     </div>
     <button class="btn purple wide" type="button" data-action="trailer">Watch trailer</button>
+    ${TEST_MODE ? '<button class="btn yellow wide" type="button" data-action="testBoost">Test: max money + every pet</button>' : ""}
     <div class="controls">
       <span><kbd>WASD</kbd>Move</span>
       <span><kbd>Space</kbd>Jump</span>
@@ -3635,6 +3644,12 @@ const ACTIONS = {
   },
   resume: () => resume(),
   trailer: () => showTitle(),
+  testBoost: () => {
+    state.cash = Math.max(state.cash, TEST_CASH);
+    for (const pet of PETS) state.pets[pet.id] = (state.pets[pet.id] ?? 0) + 1;
+    buildFollowers(player, equippedPets());
+    toast("Test boost", "Max money and one of every pet added");
+  },
   mute: () => { state.muted = !state.muted; },
   chat: () => { state.chat = !state.chat; },
   music: () => {
