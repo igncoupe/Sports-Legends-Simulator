@@ -163,16 +163,41 @@ body.hatching #hud, body.hatching #side, body.hatching #pause-btn, body.hatching
 #chat-input:focus { outline: none; border-color: var(--yellow); background: rgb(20 26 51 / 0.9); }
 .tabs.three { grid-template-columns: 1fr 1fr 1fr; }
 .row .buttons { gap: 6px; }
-.flip-coin { width: 130px; height: 130px; margin: 6px auto; display: grid; place-items: center; border-radius: 50%; border: 4px solid var(--ink); background: radial-gradient(circle at 35% 35%, #fff4b8, #fbbf24 55%, #b45309); color: var(--ink); font-size: 20px; font-weight: 700; text-align: center; overflow: hidden; }
-.flip-coin[data-face="1"] { background: radial-gradient(circle at 35% 35%, #ffffff, #cbd5e1 55%, #64748b); }
-.flip-coin span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.flip-coin.spin { animation: coinspin 0.45s linear infinite; }
-.flip-coin.win { box-shadow: 0 0 0 8px rgb(255 200 61 / 0.45), 0 0 50px 14px rgb(255 200 61 / 0.6); animation: coinpop 0.5s; }
-.flip-coin.lose { filter: grayscale(0.7) brightness(0.75); animation: coinshake 0.5s; }
-@keyframes coinspin { to { transform: rotateY(360deg); } }
-@keyframes coinpop { 50% { scale: 1.3; } }
-@keyframes coinshake { 25% { translate: -10px 0; } 75% { translate: 10px 0; } }
-.flip-stage { height: 200px; display: grid; place-items: center; }
+.flip-arena { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 4px 0 10px; }
+.flip-player { display: grid; justify-items: center; gap: 6px; text-align: center; transition: opacity 0.4s, filter 0.4s; }
+.flip-player .name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.flip-bet { padding: 6px; border-radius: 12px; background: var(--row); border: 2px solid transparent; transition: opacity 0.4s, filter 0.4s; }
+.flip-bet.won { border-color: var(--green); box-shadow: 0 0 18px rgb(34 197 94 / 0.45); }
+.flip-player.lost, .flip-bet.lost { opacity: 0.35; filter: grayscale(1); }
+.flip-stage { position: relative; width: 150px; height: 150px; display: grid; place-items: center; perspective: 700px; }
+.flip-stage > * { grid-area: 1 / 1; }
+.flip-ring { position: absolute; inset: 15px; transform: rotate(-90deg); }
+.ring-track, .ring-arc { fill: none; stroke-width: 5; }
+.ring-track { stroke: rgb(255 255 255 / 0.12); }
+.ring-arc { stroke: var(--yellow); stroke-linecap: round; }
+.flip-count { font-size: 44px; font-weight: 800; }
+.flip-stage.flipping .flip-ring, .flip-stage.flipping .flip-count { display: none; }
+.flip-stage:not(.flipping) .chip { visibility: hidden; }
+.flip-stage.landed::before { content: ""; position: absolute; width: 110px; height: 110px; border-radius: 50%; box-shadow: 0 0 40px 14px rgb(255 200 61 / 0.6); }
+.flip-stage.landed .chip { animation: chippop 0.45s; }
+@keyframes chippop { 50% { scale: 1.25; } }
+/* The poker chip: an orange Heads side and a green Tails side, with a stack of discs for its edge. */
+.chip { position: relative; width: 104px; height: 104px; transform-style: preserve-3d; }
+.chip .chip-face, .chip-edge { position: absolute; inset: 0; border-radius: 50%; }
+.chip .chip-face { backface-visibility: hidden; transform: translateZ(5px); }
+.chip .chip-face.heads { transform: rotateX(180deg) translateZ(5px); }
+.chip-edge { background: #cbd5e1; transform: translateZ(var(--z)); }
+.chip-face {
+  --c: #22c55e; --deep: #15803d;
+  display: grid; place-items: center; box-sizing: border-box; border-radius: 50%; border: 3px solid var(--ink);
+  background: radial-gradient(circle closest-side, var(--deep) 0 56%, #fff 56% 62%, var(--c) 62% 77%, transparent 77%), repeating-conic-gradient(from 11.25deg, #fff 0 15deg, var(--c) 15deg 45deg);
+  color: #fff; font-size: 16px; font-weight: 800; letter-spacing: 0.5px; paint-order: stroke fill; -webkit-text-stroke: 3px var(--ink);
+}
+.chip-face.heads { --c: #f97316; --deep: #c2410c; }
+.chip-face.mini { width: 42px; height: 42px; border-width: 2px; }
+.flip-player .side { margin-top: -4px; font-size: 13px; font-weight: 700; }
+.flip-player .side.heads { color: #fb923c; }
+.flip-player .side.tails { color: #4ade80; }
 .flip-caption { margin: 0; min-height: 32px; text-align: center; font-size: 24px; font-weight: 700; }
 .flip-caption.win { color: var(--yellow); font-size: 32px; }
 .flip-caption.lose { color: var(--red); }
@@ -846,15 +871,6 @@ const SFX = {
   },
   beep: s => s.tone(880, { type: "square", dur: 0.12, vol: 0.08 }),
   flipTick: s => s.tone(2400, { type: "square", dur: 0.02, vol: 0.05 }),
-  drumroll: s => {
-    for (let i = 0; i < 90; i++) s.noise({ dur: 0.045, vol: 0.04 + i * 0.0018, freq: 2600, filter: "bandpass", q: 0.8, at: i * 0.05 });
-  },
-  heartbeat: s => {
-    for (let i = 0; i < 3; i++) {
-      s.tone(75, { dur: 0.14, vol: 0.45, to: 45, at: i * 0.55 });
-      s.tone(65, { dur: 0.12, vol: 0.32, to: 40, at: i * 0.55 + 0.2 });
-    }
-  },
   lose: s => [392, 349, 311, 262].forEach((f, i) => s.tone(f, { type: "triangle", dur: 0.45, vol: 0.13, to: f * 0.96, at: i * 0.28 })),
   rebirth: s => {
     s.tone(110, { type: "sawtooth", dur: 1.2, vol: 0.12, to: 880 });
@@ -3203,7 +3219,7 @@ function refreshHud() {
   $("auto").classList.toggle("green", state.auto);
   $("auto").classList.toggle("gray", !state.auto);
   $("chat").hidden = !(net.status === "online" && state.chat);
-  $("players-count").textContent = net.status === "online" ? `${net.remotes.size} online` : net.status === "offline" ? "Offline" : "...";
+  $("players-count").textContent = net.status === "online" ? `${net.remotes.size + 1} online` : net.status === "offline" ? "Offline" : "...";
   renderPanel();
   dirty = true;
 }
@@ -3454,23 +3470,33 @@ const RENDER = {
     const offer = (o, action, none) => Object.keys(o).length
       ? Object.entries(o).map(([id, count]) => petCard(id, count, action)).join("")
       : `<p class="empty">${none}</p>`;
-    if (flip && t.show) {
+    // RBXFlip-style arena: the inviter (Heads) on the left, the other player (Tails) on the right.
+    const arena = sh => {
+      const iInvited = t.id.startsWith(`${net.uid}_`);
+      const sides = [
+        { name: iInvited ? "You" : name, bet: iInvited ? t.mine : t.theirs, chip: "heads", label: "Heads", won: sh?.leftWins },
+        { name: iInvited ? name : "You", bet: iInvited ? t.theirs : t.mine, chip: "tails", label: "Tails", won: sh && !sh.leftWins },
+      ];
+      const landed = sh?.landed;
+      const result = side => landed ? (side.won ? " won" : " lost") : "";
+      const seat = side => `<div class="flip-player${result(side)}"><div class="chip-face mini ${side.chip}"></div><div class="name">${side.name}</div><div class="side ${side.chip}">${side.label}</div></div>`;
+      const caption = !sh ? "Locking in the bets..." : !landed ? "" : t.result === "won" ? "YOU WIN!" : `${name} wins`;
       return `
         <h2>Coin flip with ${name}</h2>
-        <div class="flip-stage"><div id="coin" class="flip-coin"><span id="coin-face"></span></div></div>
-        <p id="flip-caption" class="flip-caption"></p>
-        <div class="trade-cols">
-          <div><h3>You bet</h3><div class="cards small">${offer(t.mine, "", "")}</div></div>
-          <div><h3>They bet</h3><div class="cards small">${offer(t.theirs, "", "")}</div></div>
-        </div>`;
-    }
-    if (flip && t.secret) {
-      return `
-        <h2>Coin flip with ${name}</h2>
-        <div class="flip-stage"><div class="flip-coin spin"><span>?</span></div></div>
-        <p class="flip-caption">Locking in the bets...</p>
-        <button class="btn red wide" type="button" data-action="close">Cancel</button>`;
-    }
+        <div class="flip-arena">
+          ${seat(sides[0])}
+          <div id="flip-stage" class="flip-stage${landed ? " flipping landed" : ""}">
+            <svg class="flip-ring" viewBox="0 0 120 120"><circle class="ring-track" cx="60" cy="60" r="54"/><circle id="ring-arc" class="ring-arc" cx="60" cy="60" r="54" stroke-dasharray="${RING}"/></svg>
+            <span id="flip-count" class="flip-count"></span>
+            <div id="chip" class="chip" style="transform: rotateX(${landed ? sh.halfFlips * 180 : 0}deg)"><div class="chip-face tails">TAILS</div>${CHIP_EDGE}<div class="chip-face heads">HEADS</div></div>
+          </div>
+          ${seat(sides[1])}
+        </div>
+        <div class="trade-cols">${sides.map(side => `<div class="flip-bet${result(side)}"><div class="cards small">${offer(side.bet, "", "")}</div></div>`).join("")}</div>
+        <p id="flip-caption" class="flip-caption${landed ? (t.result === "won" ? " win" : " lose") : ""}">${caption}</p>`;
+    };
+    if (flip && t.show) return arena(t.show);
+    if (flip && t.secret) return arena(null) + '<button class="btn red wide" type="button" data-action="close">Cancel</button>';
     const spare = PETS.filter(pet => (state.pets[pet.id] ?? 0) > (t.mine[pet.id] ?? 0)).sort((a, b) => b.power - a.power);
     return `
       <h2>${flip ? "Coin flip" : "Trade"} with ${name}</h2>
@@ -4239,8 +4265,8 @@ async function flipStep(t, sig, mine, theirs) {
 }
 
 // Pays out a coin flip in this player's save straight away (so closing the
-// game mid-show changes nothing), then plays the flip. Both players' shows come
-// from the same coin hash, so they see the same toss, wobble and landing.
+// game mid-flip changes nothing), then plays the flip. Both players' flips come
+// from the same coin hash, so they see the same chip land.
 function settleFlip(t, won, coin) {
   t.done = true;
   if (won) {
@@ -4253,21 +4279,23 @@ function settleFlip(t, won, coin) {
     }
   }
   t.result = won ? "won" : "lost";
-  const final = won ? 0 : 1; // face 0 is this player's side of the coin, 1 the other player's
-  const fakeout = parseInt(coin.slice(2, 4), 16) < 128;
-  t.show = { start: performance.now(), final, fakeout, teeter: fakeout ? 1 - final : final, halfFlips: 24 + (parseInt(coin.slice(4, 6), 16) % 6) * 2, events: new Set() };
+  // The chip starts on Tails (the right-hand player's side) and lands on Heads after an odd number of half turns.
+  const leftWins = t.id.startsWith(`${net.uid}_`) === won;
+  t.show = { start: performance.now(), leftWins, halfFlips: 2 * (8 + (parseInt(coin.slice(2, 4), 16) % 4)) + (leftWins ? 1 : 0), landed: false, events: new Set() };
   renderPanel();
   refreshHud();
   saveProgress();
 }
 
-// Seconds for each part of the show.
-const FLIP = { COUNT: 1.5, SPIN: 4.6, TEETER: 1.6, TIP: 0.5, HOLD: 3 };
+// Seconds for each part of the flip, after RBXFlip: a countdown ring, a quick flip, then the result.
+const FLIP = { COUNT: 3, SPIN: 2, HOLD: 3 };
+const RING = 2 * Math.PI * 54; // the countdown ring's circumference
+const CHIP_EDGE = Array.from({ length: 9 }, (_, i) => `<i class="chip-edge" style="--z: ${i - 4}px"></i>`).join("");
 
 function updateFlipShow() {
   const t = net.trade;
-  const coinEl = $("coin");
-  if (!t?.show || !coinEl) return;
+  const chip = $("chip");
+  if (!t?.show || t.show.landed || !chip) return;
   const s = t.show;
   const time = (performance.now() - s.start) / 1000;
   const once = (key, fn) => {
@@ -4275,52 +4303,27 @@ function updateFlipShow() {
     s.events.add(key);
     fn();
   };
-  const spinEnd = FLIP.COUNT + FLIP.SPIN;
-  const teeterEnd = spinEnd + FLIP.TEETER;
-  const landAt = teeterEnd + (s.fakeout ? FLIP.TIP : 0);
-  let face, squash = 1, lift = 0, caption;
   if (time < FLIP.COUNT) {
-    const n = 3 - Math.floor((time / FLIP.COUNT) * 3);
+    const n = Math.ceil(FLIP.COUNT - time);
     once(`count${n}`, () => sound.play("beep"));
-    face = s.teeter;
-    caption = `${n}...`;
-  } else if (time < spinEnd) {
-    const u = (time - FLIP.COUNT) / FLIP.SPIN;
-    once("toss", () => sound.play("drumroll"));
-    const flips = s.halfFlips * (1 - (1 - u) ** 3);
-    const k = Math.round(flips);
-    once(`flip${k}`, () => sound.play("flipTick"));
-    face = (s.teeter + k) % 2;
-    squash = Math.abs(Math.cos(Math.PI * flips));
-    lift = Math.sin(Math.PI * u) * 80;
-    caption = u < 0.45 ? "Flipping..." : u < 0.85 ? "Slowing down..." : "Here it comes...";
-  } else if (time < teeterEnd) {
-    const v = (time - spinEnd) / FLIP.TEETER;
-    once("teeter", () => sound.play("heartbeat"));
-    face = s.teeter;
-    squash = 1 - Math.abs(Math.sin(v * Math.PI * 3.5)) * (0.35 + 0.6 * v);
-    caption = "It's on the edge...";
-  } else if (time < landAt) {
-    const w = (time - teeterEnd) / FLIP.TIP;
-    face = w < 0.5 ? s.teeter : s.final;
-    squash = Math.abs(Math.cos(Math.PI * w));
-    caption = "It's tipping over...";
-  } else {
-    face = s.final;
-    once("land", () => revealFlip(t));
-    caption = t.result === "won" ? "YOU WIN!" : `${t.otherName} wins...`;
+    $("flip-count").textContent = n;
+    $("ring-arc").style.strokeDashoffset = RING * (time / FLIP.COUNT);
+    return;
   }
-  $("coin-face").textContent = face === 0 ? "YOU" : t.otherName;
-  coinEl.dataset.face = face;
-  coinEl.style.transform = `translateY(${-lift}px) scaleX(${Math.max(0.04, squash)})`;
-  $("flip-caption").textContent = caption;
+  // The chip tumbles end over end toward the viewer, slowing down as it lands.
+  $("flip-stage").classList.add("flipping");
+  const u = Math.min(1, (time - FLIP.COUNT) / FLIP.SPIN);
+  const turns = s.halfFlips * (1 - (1 - u) ** 3);
+  once(`flip${Math.floor(turns)}`, () => sound.play("flipTick"));
+  chip.style.transform = `scale(${1 + 0.6 * Math.sin(Math.PI * u)}) rotateX(${turns * 180}deg)`;
+  if (u === 1) revealFlip(t);
 }
 
 function revealFlip(t) {
-  const won = t.result === "won";
+  t.show.landed = true;
+  renderPanel();
   buildFollowers(player, equippedPets());
-  $("coin").classList.add(won ? "win" : "lose");
-  $("flip-caption").classList.add(won ? "win" : "lose");
+  const won = t.result === "won";
   sound.play(won ? "champion" : "lose");
   if (won) {
     sound.play("cheer");
