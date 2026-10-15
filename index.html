@@ -2819,7 +2819,9 @@ function updateHpBar(target) {
 // Pets that follow the player
 // =====================================================================
 
-const FOLLOW_SLOTS = [[-1.5, -2.3], [1.5, -2.3], [-1.6, -4], [1.6, -4]];
+// Where each equipped pet walks, relative to its athlete: one spot per pet slot.
+const FOLLOW_SLOTS = [[-1.5, -2.3], [1.5, -2.3], [-1.6, -4], [1.6, -4], [-3.1, -3.1], [3.1, -3.1], [-3.2, -4.9], [3.2, -4.9]];
+if (FOLLOW_SLOTS.length !== PET_SLOTS_MAX) throw new Error(`FOLLOW_SLOTS has ${FOLLOW_SLOTS.length} spots for ${PET_SLOTS_MAX} pet slots`);
 
 function buildFollowers(rig, pets) {
   rig.followers.forEach(f => f.group.removeFromParent());
