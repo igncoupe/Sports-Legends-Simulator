@@ -151,13 +151,12 @@ body.hatching #hud, body.hatching #side, body.hatching #pause-btn, body.hatching
 .card .name { font-size: 15px; }
 .card .count { position: absolute; top: 6px; right: 9px; font-size: 14px; font-weight: 700; }
 .cards.small { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
-#chat { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100% - 32px)); display: grid; gap: 6px; }
+#chat { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100% - 32px)); display: grid; gap: 6px; transition: opacity 0.6s; }
+#chat.idle:not(.typing) { opacity: 0; }
 #chat-log { display: grid; gap: 4px; }
-.chat-line { justify-self: start; max-width: 100%; padding: 4px 10px; border-radius: 10px; background: rgb(20 26 51 / 0.72); font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; transition: opacity 0.6s; }
+.chat-line { justify-self: start; max-width: 100%; padding: 4px 10px; border-radius: 10px; background: rgb(20 26 51 / 0.72); font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
 .chat-line b { color: var(--yellow); }
 .chat-line.note { color: var(--dim); font-style: italic; }
-.chat-line.old { opacity: 0; }
-#chat.typing .chat-line.old { opacity: 1; }
 #chat-input { box-sizing: border-box; width: 100%; padding: 8px 12px; font: inherit; font-size: 15px; color: var(--text); background: rgb(20 26 51 / 0.6); border: 2px solid rgb(255 255 255 / 0.25); border-radius: 10px; }
 #chat-input::placeholder { color: rgb(255 255 255 / 0.6); }
 #chat-input:focus { outline: none; border-color: var(--yellow); background: rgb(20 26 51 / 0.9); }
@@ -4042,11 +4041,13 @@ function updateOnline(dt) {
 const CHAT_MAX = 100;
 const CHAT_GAP_MS = 1600;
 const BUBBLE_TIME = 5;
+const CHAT_IDLE_MS = 30000; // the chat fades out this long after the last message
 let chatSentAt = 0;
 
 function startChat() {
   const { ref, query, limitToLast, onChildAdded } = net.fb;
   onChildAdded(query(ref(net.db, "chat"), limitToLast(30)), snap => receiveChat(snap.val()));
+  wakeChat();
 }
 
 function chatLine(name, text, kind = "") {
@@ -4061,7 +4062,15 @@ function chatLine(name, text, kind = "") {
   const log = $("chat-log");
   log.append(line);
   while (log.children.length > 8) log.firstChild.remove();
-  setTimeout(() => line.classList.add("old"), 12000);
+  wakeChat();
+}
+
+// Shows the chat, then fades it out once nothing new has come in for a while.
+let chatIdleTimer = 0;
+function wakeChat() {
+  $("chat").classList.remove("idle");
+  clearTimeout(chatIdleTimer);
+  chatIdleTimer = setTimeout(() => $("chat").classList.add("idle"), CHAT_IDLE_MS);
 }
 
 function receiveChat(raw) {
@@ -4104,7 +4113,12 @@ $("chat-input").addEventListener("focus", () => {
   keys.clear();
   $("chat").classList.add("typing");
 });
-$("chat-input").addEventListener("blur", () => $("chat").classList.remove("typing"));
+$("chat-input").addEventListener("blur", () => {
+  $("chat").classList.remove("typing");
+  wakeChat();
+});
+// Clicking a faded chat brings it back, ready to type.
+$("chat").addEventListener("click", () => $("chat-input").focus());
 
 // A speech bubble that floats over an athlete for a few seconds.
 function showBubble(rig, text) {
